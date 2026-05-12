@@ -1,4 +1,5 @@
-﻿using BunkerGameWeb.Helpers;
+using BunkerGameWeb.Components.Pages;
+using BunkerGameWeb.Helpers;
 using BunkerGameWeb.Models;
 
 namespace BunkerGameWeb
@@ -29,6 +30,8 @@ namespace BunkerGameWeb
 
         public int GameRounds = 0;
 
+        public BunkerStats BunkerStats;
+
         public Dictionary<int, int> Votes = [];
         public bool IsVotingActive { get; set; }
 
@@ -54,9 +57,12 @@ namespace BunkerGameWeb
         public ConfigCharacterEquipment ConfigCharacterEquipment = new(); // Если создал класс для одежды
         public ConfigCharacterRelation ConfigCharacterRelation = new(); // Есл
 
+        public CatastropheName CatastropheName = new();
+
         public event Action? OnNotify; // Событие для SignalR
 
         public void UpdateAll() => OnNotify?.Invoke();
+
 
         // Теперь метод принимает объект Player напрямую
         public void AssignRandomStats(Player player)
@@ -123,9 +129,14 @@ namespace BunkerGameWeb
 
         public int AddAndInitializePlayer()
         {
-
             if (IsGameStarted) return -1;
-            // Атомарно увеличивает счетчик и возвращает новое значение. Без блокировок!
+
+            // ✅ Если список пуст, сбрасываем счетчик
+            if (ArrayPlayers.Count == 0)
+            {
+                _idCounter = -1;
+            }
+
             int newId = Interlocked.Increment(ref _idCounter);
 
             var newPlayer = new Player
@@ -134,18 +145,12 @@ namespace BunkerGameWeb
                 Name = $"Выживший #{newId}"
             };
 
-            // Автоматически выдаем стартовые характеристики
-            // Используем те же методы, что мы писали раньше
             AssignRandomStats(newPlayer);
-
             ArrayPlayers.Add(newPlayer);
-
-            // ВАЖНО: Рассылаем сигнал всем, что в списке новый игрок
             UpdateAll();
 
-            Console.WriteLine($"[LOG] Игрок {newId} добавлен в спискок");
+            Console.WriteLine($"[LOG] Игрок {newId} добавлен в список");
             return newId;
-
         }
 
         public void OpenTrait(int playerId, PlayerFieldType traitName)
@@ -153,20 +158,28 @@ namespace BunkerGameWeb
             var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
             if (player == null) return;
 
-            // Проверяем, не открыта ли уже характеристика
-            bool isAlreadyOpened = PlayerTraitHelper.IsOpened(player, traitName);
+            if (player.IsSelectionConfirmed) return;
 
-            if (isAlreadyOpened)
+            // Работаем с временным списком
+            bool isInPending = player.PendingOpenedTypes.Contains(traitName);
+
+            if (isInPending)
             {
-                // Если уже открыта - закрываем (отмена выбора)
-                PlayerTraitHelper.SetOpened(player, traitName, false);
+                // Убираем из временного списка
+                player.PendingOpenedTypes.Remove(traitName);
+                player.CurrentOpenedCard--;
             }
             else
             {
-                // Открываем характеристику
-                PlayerTraitHelper.SetOpened(player, traitName, true);
+                // Добавляем во временный список
+                if (player.CurrentOpenedCard < player.CountNeedOpen)
+                {
+                    player.PendingOpenedTypes.Add(traitName);
+                    player.CurrentOpenedCard++;
+                }
             }
 
+            // Обновляем ТОЛЬКО для текущего игрока
             UpdateAll();
         }
 
@@ -206,6 +219,8 @@ namespace BunkerGameWeb
             // Повторная проверка после ожидания
             if (AreAllReady && ArrayPlayers.Count >= 2)
             {
+                // Генерируем бункер при старте
+                BunkerStats = GetTextForBunker();
                 IsGameStarted = true;
                 UpdateAll();
             }
@@ -213,37 +228,39 @@ namespace BunkerGameWeb
         }
         private async Task WaiterToStart()
         {
-            for (int i = 0; i < 30 && AreAllReady; i++)
+            for (int i = 0; i < 10 && AreAllReady; i++)
             {
                 await Task.Delay(100);
             }
         }
 
         // Метод для завершения хода
+        // Метод NextTurn остается, но вызывается ПОСЛЕ подтверждения
         public void NextTurn()
         {
             if (ArrayPlayers.Count == 0) return;
 
-            // 1. Увеличиваем индекс
+            // Применяем выбор текущего игрока перед передачей хода
+            var currentPlayer = ArrayPlayers[CurrentPlayerIndex];
+            currentPlayer.ApplyPendingSelections();
+            currentPlayer.IsSelectionConfirmed = false;
+            currentPlayer.CurrentOpenedCard = 0;
+
+            // Остальная логика NextTurn без изменений...
             CurrentPlayerIndex++;
 
-            // 2. Если вышли за пределы — значит круг закончен
             if (CurrentPlayerIndex >= ArrayPlayers.Count)
             {
                 CurrentPlayerIndex = 0;
-
-                // ПРОВЕРКА ГОЛОСОВАНИЯ
                 if (IsVotingRound())
                 {
                     StartVoting();
                     UpdateAll();
-                    return; // Останавливаемся здесь!
+                    return;
                 }
-
-                GameRounds++; // Если не голосование, то новый раунд
+                GameRounds++;
             }
 
-            // 3. Пропускаем изгнанных
             while (ArrayPlayers[CurrentPlayerIndex].IsEliminated)
             {
                 CurrentPlayerIndex++;
@@ -251,12 +268,9 @@ namespace BunkerGameWeb
                 {
                     CurrentPlayerIndex = 0;
                     GameRounds++;
-                    // Здесь тоже в идеале нужна проверка IsVotingRound, 
-                    // если последний в списке игрок был изгнан
                 }
             }
 
-            // 4. Подготовка игрока
             var nextPlayer = ArrayPlayers[CurrentPlayerIndex];
             nextPlayer.CurrentOpenedCard = 0;
             nextPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
@@ -372,28 +386,145 @@ namespace BunkerGameWeb
             CurrentPlayerIndex = 0;
             _isStarting = false;
 
-            // 3. Уведомляем всех клиентов, что нужно перерисовать интерфейс (вернуться в лобби)
+            // ✅ ВАЖНО: Сбрасываем счетчик ID
+            _idCounter = -1;
+
+            // 3. Уведомляем всех клиентов
             UpdateAll();
         }
 
 
         // Использование специального умения
-        public bool UseSpecialAbility(int playerId, PlayerFieldType targetTrait = PlayerFieldType.Age)
+        // Использование специального умения
+        public bool UseSpecialAbility(int playerId, PlayerFieldType? targetField = null)
         {
             var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
             if (player == null || player.SpecialCondition.IsUsed) return false;
 
             var ability = player.SpecialCondition;
+            PlayerFieldType fieldToUse = targetField ?? ability.PlayerFieldType;
 
-            return ability.Type switch
+            bool success = false;
+
+            switch (ability.Type)
             {
-                CharacterSpecialConditionType.Swap => SwapTrait(playerId, ability.PlayerFieldType, targetTrait),
-                CharacterSpecialConditionType.Rerole => RerollTrait(playerId, ability.PlayerFieldType),
-                CharacterSpecialConditionType.Upgrade => UpgradeTrait(playerId, ability.PlayerFieldType),
-                CharacterSpecialConditionType.Snow => ShowOtherTrait(playerId),
-                CharacterSpecialConditionType.SnowYourself => ShowSelfTrait(playerId),
-                _ => false,
+                case CharacterSpecialConditionType.Swap:
+                    success = SwapTrait(playerId, fieldToUse);
+                    break;
+
+                case CharacterSpecialConditionType.Rerole:
+                    success = RerollTrait(playerId, fieldToUse);
+                    break;
+
+                case CharacterSpecialConditionType.Upgrade:
+                    success = UpgradeTrait(playerId, fieldToUse);
+                    break;
+
+                case CharacterSpecialConditionType.Snow:
+                    success = ShowOtherTrait(playerId);
+                    break;
+
+                case CharacterSpecialConditionType.SnowYourself:
+                    success = ShowSelfTrait(playerId);
+                    break;
+            }
+
+            if (success)
+            {
+                player.SpecialCondition.IsUsed = true;
+
+                // Если это умение показа чужой карты - открываем случайную характеристику
+                if (ability.Type == CharacterSpecialConditionType.Snow)
+                {
+                    RevealRandomTraitOfOther(playerId);
+                }
+
+                UpdateAll();
+            }
+
+            return success;
+        }
+
+        private void RevealRandomTraitOfOther(int playerId)
+        {
+            var currentPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
+            if (currentPlayer == null) return;
+
+            // Получаем список других живых игроков
+            var otherPlayers = ArrayPlayers.Where(p => p.Id != playerId && !p.IsEliminated).ToList();
+            if (otherPlayers.Count == 0) return;
+
+            // Выбираем случайного игрока
+            var randomPlayer = otherPlayers[Random.Shared.Next(otherPlayers.Count)];
+
+            // Получаем список неоткрытых характеристик
+            var unopenedFields = Enum.GetValues<PlayerFieldType>()
+                .Where(f => f != PlayerFieldType.SpecialCondition && !PlayerTraitHelper.IsOpened(randomPlayer, f))
+                .ToList();
+
+            if (unopenedFields.Count > 0)
+            {
+                // Открываем случайную характеристику
+                var randomField = unopenedFields[Random.Shared.Next(unopenedFields.Count)];
+                PlayerTraitHelper.SetOpened(randomPlayer, randomField, true);
+
+                Console.WriteLine($"[УМЕНИЕ] Открыта характеристика {randomField} игрока {randomPlayer.Name}");
+            }
+        }
+
+        // Обмен характеристикой с другим игроком
+        private bool SwapTrait(int playerId, PlayerFieldType fieldType)
+        {
+            var currentPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
+            var targetPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == CurrentTurnPlayerId && p.Id != playerId);
+
+            if (currentPlayer == null || targetPlayer == null) return false;
+
+            // Временное сохранение значений
+            var tempValue1 = PlayerTraitHelper.GetValue(currentPlayer, fieldType);
+            var tempValue2 = PlayerTraitHelper.GetValue(targetPlayer, fieldType);
+
+            // Обмен значениями
+            PlayerTraitHelper.SetValue(currentPlayer, fieldType, tempValue2);
+            PlayerTraitHelper.SetValue(targetPlayer, fieldType, tempValue1);
+
+            currentPlayer.SpecialCondition.IsUsed = true;
+            UpdateAll();
+            return true;
+        }
+
+        // Добавьте метод для получения имени характеристики
+        public string GetFieldDisplayName(PlayerFieldType fieldType)
+        {
+            return fieldType switch
+            {
+                PlayerFieldType.BiologicalSex => "Пол",
+                PlayerFieldType.Age => "Возраст",
+                PlayerFieldType.Profession => "Профессия",
+                PlayerFieldType.Health => "Здоровье",
+                PlayerFieldType.BodyBuild => "Телосложение",
+                PlayerFieldType.Hobby => "Хобби",
+                PlayerFieldType.Phobia => "Фобия",
+                PlayerFieldType.Inventory => "Инвентарь",
+                PlayerFieldType.Trait => "Черта характера",
+                PlayerFieldType.AdditionalInformation => "Доп. информация",
+                PlayerFieldType.SpecialCondition => "Спец. условие",
+                PlayerFieldType.Baggage => "Багаж",
+                PlayerFieldType.Knowledge => "Знания",
+                PlayerFieldType.Secret => "Секрет",
+                PlayerFieldType.Reproduction => "Репродукция",
+                PlayerFieldType.Vision => "Видение",
+                PlayerFieldType.Equipment => "Снаряжение",
+                PlayerFieldType.Relation => "Отношение",
+                _ => "Неизвестно"
             };
+        }
+        // Получить список всех полей (кроме специального условия)
+        public List<PlayerFieldType> GetAllPlayerFields()
+        {
+            return Enum.GetValues<PlayerFieldType>()
+                .Where(f => f != PlayerFieldType.SpecialCondition)
+                .ToList();
         }
 
         // Обмен характеристиками между игроками
@@ -532,10 +663,8 @@ namespace BunkerGameWeb
             var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
             if (player == null) return false;
 
-            // Даем возможность открыть дополнительную характеристику у другого игрока
-            player.CountNeedOpen += 1;
-            player.SpecialCondition.IsUsed = true;
-            UpdateAll();
+            // Умение используется, но характеристика откроется в RevealRandomTraitOfOther
+            // Здесь просто подтверждаем использование
             return true;
         }
 
@@ -547,9 +676,76 @@ namespace BunkerGameWeb
 
             // Увеличиваем лимит открываемых карт для себя
             player.CountNeedOpen += 1;
-            player.SpecialCondition.IsUsed = true;
+
+            // Открываем случайную неоткрытую характеристику
+            var unopenedFields = Enum.GetValues<PlayerFieldType>()
+                .Where(f => f != PlayerFieldType.SpecialCondition && !PlayerTraitHelper.IsOpened(player, f))
+                .ToList();
+
+            if (unopenedFields.Count > 0)
+            {
+                var randomField = unopenedFields[Random.Shared.Next(unopenedFields.Count)];
+                PlayerTraitHelper.SetOpened(player, randomField, true);
+                Console.WriteLine($"[УМЕНИЕ] Открыта своя характеристика: {randomField}");
+            }
+
+            return true;
+        }
+
+        // Добавьте метод для подтверждения выбранных карт
+        public bool ConfirmSelection(int playerId)
+        {
+            var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
+            if (player == null) return false;
+
+            if (player.CurrentOpenedCard < player.CountNeedOpen)
+                return false;
+
+            // Применяем временный выбор - открываем характеристики
+            foreach (var type in player.PendingOpenedTypes)
+            {
+                PlayerTraitHelper.SetOpened(player, type, true);
+            }
+
+            player.IsSelectionConfirmed = true;
             UpdateAll();
             return true;
+        }
+
+        // Отмена выбора (например, для умения)
+        public void CancelSelection(int playerId)
+        {
+            var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
+            if (player == null) return;
+
+            player.PendingOpenedTypes.Clear();
+            player.CurrentOpenedCard = 0;
+            player.IsSelectionConfirmed = false;
+            UpdateAll();
+        }
+
+        public BunkerStats GetTextForBunker()
+        {
+            int idItemName;
+            int idItemDescription;
+            int itemCount;
+            int idCatastropheText = Random.Shared.Next(0, CatastropheName.CatastropheText.Length);
+            int MaxPlayerCount = Random.Shared.Next(0, ArrayPlayers.Count);
+            int TimeToNeedInBunker = Random.Shared.Next(0, 72);
+            int Count = Random.Shared.Next(0, 20);
+            BunkerItem[] items = new BunkerItem[Count];
+            for (int i = 0; i < Count; i++)
+            {
+                idItemName = Random.Shared.Next(0, CatastropheName.itemNames.Length);
+                itemCount = Random.Shared.Next(0, 40);
+                idItemDescription = Random.Shared.Next(0, CatastropheName.itemDescription.Length);
+                items[i] = new BunkerItem(idItemName, idItemDescription, itemCount);
+            }
+            return new(items, TimeToNeedInBunker, MaxPlayerCount, idCatastropheText)
+            {
+                IsCreate = true
+            };
+
         }
     }
 }

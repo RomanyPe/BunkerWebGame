@@ -8,63 +8,142 @@
 
 <PageTitle>Бункер - Игра</PageTitle>
 
-<div class="bunker-panel p-3 rounded shadow">
-    <h1 class="mb-4">🌍 Катастрофа: @CurrentCatastrophe</h1>
+<div class="bunker-panel">
+    <div class="catastrophe-panel">
+        <div class="catastrophe-title">
+            <span class="catastrophe-icon">⚠️</span> КАТАСТРОФА
+            @* Информационная панель бункера *@
+            @if (showBunkerInfo)
+            {
+                <div class="bunker-info-panel">
+        
+                    <div class="bunker-info-header">
+                        ☢️ ИНФОРМАЦИЯ О БУНКЕРЕ
+                    </div>
+
+                    @* ПРЕДЫСТОРИЯ *@
+                    <div class="info-section">
+                        <div class="info-section-title">
+                            <span class="info-section-icon">📜</span> Предыстория
+                        </div>
+                        <div class="info-section-text">
+                            @GameManager.CatastropheName.CatastropheText[GameManager.BunkerStats.BunkerDescriptionID]
+                        </div>
+                    </div>
+
+                    @* ЦЕЛЬ *@
+                    <div class="info-section">
+                        <div class="info-section-title">
+                            <span class="info-section-icon">🎯</span> Цель
+                        </div>
+                        <div class="goal-text">
+                            Прожить в бункере <span class="goal-highlight">@GameManager.BunkerStats.TimeToNeedInBunker месяцев</span>.
+                            Бункер рассчитан максимум на <span class="goal-highlight">@GameManager.BunkerStats.MaxPlayerCount человек</span>.
+                            Сейчас внутри <span class="goal-highlight">@GameManager.ArrayPlayers.Count</span>.
+                            @if (GameManager.ArrayPlayers.Count > GameManager.BunkerStats.MaxPlayerCount)
+                            {
+                                <span style="color: #dc3545;"> — ПРЕВЫШЕНИЕ!</span>
+                            }
+                        </div>
+                    </div>
+
+                    @* РЕСУРСЫ БУНКЕРА *@
+                    <div class="info-section">
+                        <div class="info-section-title">
+                            <span class="info-section-icon"></span> Найденные предметы
+                        </div>
+                        <ul class="item-list">
+                            @foreach (var item in GameManager.BunkerStats.BunkerItems)
+                            {
+                                <li class="item-entry">
+                                    <span class="item-bullet">●</span>
+                                    @* <span>@GameManager.CatastropheName.itemNames[item.ItemName] </span>  *@
+                                    <span>@GameManager.CatastropheName.itemDescription[item.ItemDescription]</span>
+                                    <span class="item-count">×@item.ItemCount</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    <button class="info-toggle-btn" @onclick="() => showBunkerInfo = false">
+                        ▲ Скрыть информацию
+                    </button>
+                </div>
+            }
+
+            @* Кнопка показать (когда скрыта) *@
+            @if (!showBunkerInfo && GameManager.IsGameStarted)
+            {
+                <button class="info-toggle-btn" @onclick="() => showBunkerInfo = true" style="margin-bottom: 1rem;">
+                    ▼ Показать информацию о бункере
+                </button>
+            }
+        </div>
+        <div class="catastrophe-text">@CurrentCatastrophe</div>
+    </div>
+    
 
     @if (CurrentPlayer != null)
     {
         @* --- БЛОК ЛОББИ (До старта игры) --- *@
         @if (!GameManager.IsGameStarted)
         {
-            <div class="d-flex align-items-center gap-3 mb-4 p-3 border rounded shadow-sm"
-                 style="background-color: #151515; border-color: #333 !important;">
-                
-                <button class="btn @(CurrentPlayer.IsReady ? "btn-success" : "btn-outline-warning")"
+            <div class="lobby-ready-panel">
+        
+                <button class="btn-ready @(CurrentPlayer.IsReady ? "is-ready" : "")"
                         disabled="@GameManager._isStarting"
                         @onclick="() => GameManager.ToggleReady(MyId)">
-                    @(GameManager._isStarting ? "Запуск..." : (CurrentPlayer.IsReady ? "Я готов!" : "Нажать готовность"))
+                    @(GameManager._isStarting ? "ЗАПУСК..." : (CurrentPlayer.IsReady ? "✓ ГОТОВ" : "ГОТОВНОСТЬ"))
                 </button>
 
                 @if (GameManager.AreAllReady && !GameManager._isStarting)
                 {
-                    <span class="badge bg-success">Все готовы!</span>
+                    <span class="status-all-ready">Все готовы!</span>
                 }
                 else
                 {
-                    <small style="color: #ffc107;">Ожидание: @GameManager.ArrayPlayers.Count(p => p.IsReady) / @GameManager.ArrayPlayers.Count</small>
+                    <span class="status-text">Ожидание: @GameManager.ArrayPlayers.Count(p => p.IsReady) / @GameManager.ArrayPlayers.Count</span>
                 }
 
                 @if (GameManager.ArrayPlayers.FirstOrDefault()?.Id == MyId)
                 {
-                    <button class="btn btn-danger ms-auto"
+                    <button class="btn-start"
                             disabled="@(!GameManager.AreAllReady || GameManager._isStarting)"
                             @onclick="HandleStartClick">
-                        ЗАПУСТИТЬ БУНКЕР
+                        ЗАПУСТИТЬ
                     </button>
                 }
             </div>
 
             @* Список игроков в лобби *@
-            <div class="d-inline-flex flex-column gap-2 p-3 border rounded mb-4" style="background-color: #151515; border-color: #333; min-width: 300px;">
-                <h5 class="text-center border-bottom pb-2" style="color: #ffc107;">Список игроков</h5>
+            <div class="player-list-panel">
+                <h5 class="player-list-title">Список игроков</h5>
                 @foreach (var player in GameManager.ArrayPlayers)
                 {
-                    <div class="d-flex justify-content-between align-items-center p-2 rounded border"
-                         style="background-color: #1a1a1a; border-color: #333; color: #ffc107;">
-                        <span>@player.Name @(player.Id == MyId ? "(Вы)" : "")</span>
-                        <span class="badge @(player.IsReady ? "bg-success" : "bg-secondary")">@(player.IsReady ? "Готов" : "Ждет")</span>
+                    <div class="player-list-item @(player.Id == MyId ? "is-me" : "")">
+                        <span class="player-name">@player.Name @(player.Id == MyId ? "(ВЫ)" : "")</span>
+                        <span class="@(player.IsReady ? "badge-ready" : "badge-waiting")">
+                            @(player.IsReady ? "Готов" : "Ждет")
+                        </span>
                     </div>
                 }
             </div>
         }
 
+        @* Кнопка рестарта *@
+        @if (MyId == GameManager.ArrayPlayers.FirstOrDefault()?.Id)
+        {
+            <button class="btn-restart" @onclick="HandleRestart">
+                ⚙️ Полный рестарт
+            </button>
+        }
         @* --- БЛОК ИГРЫ (После старта) --- *@
         @if (GameManager.IsGameStarted)
         {
             <div class="game-header d-flex gap-3 align-items-start mb-4">
                 @* Плашка раунда *@
                 <div class="p-2 border rounded shadow-sm d-flex flex-column justify-content-center align-items-center"
-                     style="width: 120px; height: 90px; background-color: #151515; border-color: #444; border-width: 2px;">
+                     style="width: 120px; height: 90px; background-color: #151515; border-color: #444; border-width: 2px; min-height: 130px">
                     <span style="color: #888; font-size: 0.7rem; text-transform: uppercase;">Раунд</span>
                     <p class="mb-0" style="color: #ffc107; font-size: 1.8rem; font-weight: bold;">@GameManager.GameRounds</p>
                     @if (GameManager.IsVotingActive)
@@ -72,29 +151,116 @@
                         <span class="badge bg-danger" style="font-size: 0.5rem;">ГОЛОСОВАНИЕ</span>
                     }
                 </div>
+                @* Панель выбора цели для умения *@
+                @if (showAbilityTargetSelection)
+                {
+                    <div class="ability-overlay" @onclick="() => showAbilityTargetSelection = false">
+                        <div class="ability-panel" @onclick:stopPropagation="true">
+                            <div class="ability-title">
+                                🎯 ВЫБЕРИТЕ ЦЕЛЬ ДЛЯ УМЕНИЯ
+                            </div>
+            
+                            <div class="ability-description">
+                                @GetAbilityDescription(CurrentPlayer.SpecialCondition)
+                            </div>
 
+                            @* Выбор характеристики *@
+                            <div class="ability-section">
+                                <div class="ability-section-title">Характеристика:</div>
+                                <select class="ability-select" @bind="selectedTargetField">
+                                    @foreach (var field in GameManager.GetAllPlayerFields())
+                                    {
+                                        <option value="@field">@GameManager.GetFieldDisplayName(field)</option>
+                                    }
+                                </select>
+                            </div>
+
+                            @* Выбор игрока (для обмена) *@
+                            @if (CurrentPlayer.SpecialCondition.Type == CharacterSpecialConditionType.Swap)
+                            {
+                                <div class="ability-section">
+                                    <div class="ability-section-title">Обменяться с:</div>
+                                    <select class="ability-select" @bind="selectedTargetPlayerId">
+                                        @foreach (var player in GameManager.ArrayPlayers.Where(p => p.Id != MyId && !p.IsEliminated))
+                                        {
+                                            <option value="@player.Id">@player.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+
+                            <div class="ability-buttons">
+                                <button class="ability-btn confirm" @onclick="UseAbility">
+                                    ✓ ИСПОЛЬЗОВАТЬ
+                                </button>
+                                <button class="ability-btn cancel" @onclick="() => showAbilityTargetSelection = false">
+                                    ✕ ОТМЕНА
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Панель умения *@
+                @if (GameManager.IsGameStarted && CurrentPlayer != null && !CurrentPlayer.SpecialCondition.IsUsed && MyId == GameManager.CurrentTurnPlayerId)
+                {
+                    <div class="p-3 border rounded mb-3" style="background-color: #1a1515; border-color: #8b0000;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 style="color: #ff4500; margin-bottom: 4px;">🎯 Специальное умение</h5>
+                                <p class="mb-0" style="color: #ff8c66; font-size: 0.85rem;">
+                                    @GameManager.ConfigCharacterSpecialCondition.Text[CurrentPlayer.SpecialCondition.NameTrait]
+                                </p>
+                            </div>
+                            <button class="btn btn-outline-warning btn-sm" @onclick="ShowAbilityPanel">
+                                ⚡ Использовать
+                            </button>
+                        </div>
+                        <small style="color: #888;">
+                            Использование умения завершит ваш ход
+                        </small>
+                    </div>
+                }
                 @* Инфо-панель хода *@
                 <div class="flex-grow-1">
-                    @if (MyId == GameManager.CurrentTurnPlayerId)
+                    @if (MyId == GameManager.CurrentTurnPlayerId && CurrentPlayer != null)
                     {
                         <div class="p-3 border rounded shadow-sm" style="background-color: #1a2e1a; border-color: #2d5a2d; color: #d4edda;">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h4 class="mb-1" style="color: #75ec75;">Ваш ход!</h4>
-                                    <p class="mb-0">Выберите карточки: <strong>@CurrentPlayer.CurrentOpenedCard из @CurrentPlayer.CountNeedOpen</strong></p>
+                                    <p class="mb-0">
+                                        @if (!CurrentPlayer.IsSelectionConfirmed)
+                                        {
+                                            <span>Выберите карточки: <strong>@CurrentPlayer.CurrentOpenedCard из @CurrentPlayer.CountNeedOpen</strong></span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color: #5eff7e;">✓ Выбор подтвержден! Нажмите "Передать ход"</span>
+                                        }
+                                    </p>
                                 </div>
-                                @if (CurrentPlayer.CurrentOpenedCard == CurrentPlayer.CountNeedOpen)
-                                {
-                                    <button class="btn btn-success px-4 fw-bold" @onclick="ConfirmTurn">ПОДТВЕРДИТЬ</button>
-                                }
+                                <div class="d-flex gap-2">
+                                    @if (!CurrentPlayer.IsSelectionConfirmed && CurrentPlayer.CurrentOpenedCard > 0)
+                                    {
+                                        <button class="btn btn-outline-warning btn-sm" @onclick="CancelSelection">
+                                            Отменить
+                                        </button>
+                                    }
+                                    @if (!CurrentPlayer.IsSelectionConfirmed && CurrentPlayer.CurrentOpenedCard == CurrentPlayer.CountNeedOpen)
+                                    {
+                                        <button class="btn btn-success px-4 fw-bold" @onclick="ConfirmSelection">
+                                            ПОДТВЕРДИТЬ
+                                        </button>
+                                    }
+                                    @if (CurrentPlayer.IsSelectionConfirmed)
+                                    {
+                                        <button class="btn btn-warning px-4 fw-bold" @onclick="PassTurn">
+                                            ПЕРЕДАТЬ ХОД
+                                        </button>
+                                    }
+                                </div>
                             </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="p-3 border rounded shadow-sm" style="background-color: #2b2111; border-color: #554121; color: #ffeeba;">
-                            <h4 class="mb-1" style="color: #ffc107;">Ходит @(GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == GameManager.CurrentTurnPlayerId)?.Name ?? "...")</h4>
-                            <p class="mb-0">Ожидайте завершения хода.</p>
                         </div>
                     }
                 </div>
@@ -104,7 +270,7 @@
             @if (GameManager.IsVotingActive)
             {
                 <div class="p-4 border rounded mb-4 shadow" style="background-color: #1a1515; border-color: #8b0000 !important;">
-                    <h3 class="text-center mb-3" style="color: #ff4500;">🚨 ГОЛОСОВАНИЕ 🚨</h3>
+                    <h3 class="text-center mb-3" style="color: #ff4500;"> ГОЛОСОВАНИЕ НА ВЫБЫВАНИЕ </h3>
                     @if (GameManager.Votes.ContainsKey(MyId))
                     {
                         <div class="text-center text-muted">Голос принят. Ожидание: @GameManager.Votes.Count / @GameManager.ArrayPlayers.Count(p => !p.IsEliminated)</div>
@@ -166,36 +332,28 @@
                         </div>
                     </div>
                 }
-                @if (GameManager.IsGameStarted && CurrentPlayer != null && !CurrentPlayer.SpecialCondition.IsUsed)
-                {
-                    <div class="p-3 border rounded mb-3" style="background-color: #1a1515; border-color: #8b0000;">
-                        <h5 style="color: #ff4500;">🎯 Специальное умение</h5>
-                        <p class="mb-2">@GameManager.ConfigCharacterSpecialCondition.Text[CurrentPlayer.SpecialCondition.NameTrait]</p>
-                        <button class="btn btn-outline-warning btn-sm" @onclick="() => Open(PlayerFieldType.SpecialCondition, MyId)">
-                            Использовать умение
-                        </button>
-            </div>
-        }
             </div>
     }
-    }
-    @if (MyId == GameManager.ArrayPlayers.FirstOrDefault()?.Id)
-    {
-        <button class="btn btn-outline-danger btn-sm" @onclick="HandleRestart">
-            ⚙️ Полный рестарт сервера
-        </button>
-    }
-
-
+}
 </div>
 
 @code {
     // Рендеринг строки характеристики (Вместо ячейки таблицы)
     RenderFragment renderTrait(PlayerFieldType type, string label, bool isOpened, int playerId, string value) => __builder =>
     {
-        bool showValue = isOpened || playerId == MyId;
-        // Можно кликнуть, если: не открыто И не я И мой ход И не голосование
-        bool canClick = !isOpened && playerId == MyId && GameManager.CurrentTurnPlayerId == MyId && !GameManager.IsVotingActive;
+        if (CurrentPlayer == null) return;
+        bool isMyCard = playerId == MyId;
+        bool isInPending = isMyCard && CurrentPlayer != null && CurrentPlayer.PendingOpenedTypes.Contains(type);
+    
+        // ✅ ВИДНО ЗНАЧЕНИЕ ЕСЛИ:
+        // - Карта открыта (isOpened) ИЛИ
+        // - Это МОЯ карта (я всегда вижу свои значения)
+        bool showValue = isOpened || isMyCard;
+    
+        bool canClick = isMyCard &&
+                        GameManager.CurrentTurnPlayerId == MyId &&
+                        !GameManager.IsVotingActive &&
+                        (!CurrentPlayer.IsSelectionConfirmed);
 
         <div class="trait-row @(showValue ? "opened" : "locked") @(canClick ? "clickable" : "")"
              @onclick="() => { if (canClick) Open(type, playerId); }">
@@ -204,14 +362,30 @@
                 @if (showValue)
                 {
                     @((MarkupString)value)
+                    @if (isMyCard && !isOpened && isInPending)
+                    {
+                        <span class="pending-indicator" title="Будет показано после передачи хода"></span>
+                    }
                 }
                 else
                 {
-
-                    <span class="lock-icon">🔒</span>
+                    <span class="trait-lock-icon hidden"> 🔒 </span>
+                }
+            
+                @if (isMyCard && isOpened)
+                {
+                    <span class="trait-lock-icon visible" title="Видно другим"> </span>
+                }
+                else if (isMyCard && !isOpened && !isInPending)
+                {
+                    <span class="trait-lock-icon hidden" title="Скрыто от других"> 🔒 </span>
+                }
+                else if (isMyCard && isInPending && !CurrentPlayer.IsSelectionConfirmed)
+                {
+                    <span class="pending-dot" title="Ожидает подтверждения">●</span>
                 }
             </span>
         </div>
     };
 
-Ы}
+}
