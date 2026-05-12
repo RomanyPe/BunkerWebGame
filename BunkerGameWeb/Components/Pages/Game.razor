@@ -174,10 +174,10 @@
                         <button class="btn btn-outline-warning btn-sm" @onclick="() => Open(PlayerFieldType.SpecialCondition, MyId)">
                             Использовать умение
                         </button>
-                    </div>
-                }
             </div>
         }
+            </div>
+    }
     }
     @if (MyId == GameManager.ArrayPlayers.FirstOrDefault()?.Id)
     {
@@ -185,6 +185,8 @@
             ⚙️ Полный рестарт сервера
         </button>
     }
+
+
 </div>
 
 @code {
@@ -211,4 +213,5 @@
             </span>
         </div>
     };
-}
+
+Ы}

@@ -756,7 +756,7 @@ namespace BunkerGameWeb.Models
         Equipment,             // Снаряжение (одежда/защита)
         Relation,              // Отношение к другим (социальный статус/связи)
 
-        None
+        NoneЫ
     }
 
     public class ConfigCharacterBaggage
