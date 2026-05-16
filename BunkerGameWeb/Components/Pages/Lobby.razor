@@ -1,0 +1,44 @@
+﻿@page "/lobby"
+@rendermode InteractiveServer
+
+<PageTitle>Бункер - Лобби</PageTitle>
+
+<div class="lobby-container" style="background-color: #4444">
+    <div class="lobby-header">
+        <h1> БУНКЕР</h1>
+        <p class="lobby-subtitle">Создайте комнату или присоединитесь</p>
+    </div>
+
+    <div class="lobby-actions">
+        <button class="lobby-btn create" @onclick="CreateRoom">
+             Создать комнату
+        </button>
+    </div>
+
+    <div class="rooms-list">
+        <h3>Активные комнаты</h3>
+        @if (rooms.Count == 0)
+        {
+            <p class="no-rooms">Нет активных комнат</p>
+        }
+        else
+        {
+            @foreach (var room in rooms)
+            {
+                <div class="room-card">
+                    <div class="room-info">
+                        <span class="room-id"> @room.RoomId</span>
+                        <span class="room-players"> @room.PlayerCount игроков</span>
+                        @if (room.IsStarted)
+                        {
+                            <span class="room-started">Игра идет</span>
+                        }
+                    </div>
+                    <button class="lobby-btn join" @onclick="() => JoinRoom(room.RoomId)" disabled="@room.IsStarted">
+                        Подключиться
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>

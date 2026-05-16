@@ -1,0 +1,7 @@
+﻿[*.cs]
+
+# CS8602: Разыменование вероятной пустой ссылки.
+dotnet_diagnostic.CS8602.severity = none
+
+# CS8603: Возможно, возврат ссылки, допускающей значение NULL.
+dotnet_diagnostic.CS8603.severity = none

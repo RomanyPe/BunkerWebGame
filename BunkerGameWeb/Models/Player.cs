@@ -34,8 +34,12 @@
         // ✅ Временный выбор (виден только игроку)
         public HashSet<PlayerFieldType> PendingOpenedTypes = [];
         public bool IsSelectionConfirmed { get; set; } = false;
+        public string SessionKey { get; set; } = string.Empty;
+        public bool IsWinner { get; set; } = false;
+        public bool IsConnected { get; set; } = true;   // активно ли соединение
+        public DateTime LastSeenUtc { get; set; } = DateTime.UtcNow;
 
-        // ✅ Метод для применения выбора
+        // Метод для применения выбора
         public void ApplyPendingSelections()
         {
             foreach (var type in PendingOpenedTypes)
@@ -45,7 +49,7 @@
             PendingOpenedTypes.Clear();
         }
 
-        // ✅ Метод для отмены выбора
+        // Метод для отмены выбора
         public void CancelPendingSelections()
         {
             PendingOpenedTypes.Clear();

@@ -13,16 +13,27 @@ namespace BunkerGameWeb
         public bool IsGameStarted { get; private set; } = false;
         public bool _isStarting = false;
 
+        public event Action<string>? OnGameEnded;
         // Индекс игрока, который ходит сейчас (в списке PlayerIds)
         public int CurrentPlayerIndex { get; private set; } = 0;
 
         // Свойство, возвращающее ID текущего ходящего
-        public int CurrentTurnPlayerId 
+        public int CurrentTurnPlayerId
         {
             get
             {
                 if (ArrayPlayers == null || ArrayPlayers.Count == 0)
-                    return -1; // Возвращаем спец. значение, если игроков нет
+                    return -1;
+
+                if (CurrentPlayerIndex < 0 || CurrentPlayerIndex >= ArrayPlayers.Count)
+                {
+                    // Сбрасываем индекс на 0 если он некорректный
+                    CurrentPlayerIndex = 0;
+
+                    // Если после сброса список пуст - возвращаем -1
+                    if (ArrayPlayers.Count == 0)
+                        return -1;
+                }
 
                 return ArrayPlayers[CurrentPlayerIndex].Id;
             }
@@ -33,6 +44,8 @@ namespace BunkerGameWeb
         public BunkerStats BunkerStats;
 
         public Dictionary<int, int> Votes = [];
+        public HashSet<int> PlayersWhoMovedThisRound = [];
+
         public bool IsVotingActive { get; set; }
 
         public ConfigCharacterName ConfigCharacterName = new();
@@ -62,8 +75,37 @@ namespace BunkerGameWeb
         public event Action? OnNotify; // Событие для SignalR
 
         public void UpdateAll() => OnNotify?.Invoke();
+        // GameManager.cs
+        private Timer? _cleanupTimer;
 
+        public GameManager()
+        {
+            // Запускаем таймер каждые 30 секунд
+            _cleanupTimer = new Timer(_ => RemoveDisconnectedPlayers(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        }
 
+        private void RemoveDisconnectedPlayers()
+        {
+            var timeout = TimeSpan.FromSeconds(45); // даём 45 секунд на переподключение
+            var now = DateTime.UtcNow;
+            var toRemove = ArrayPlayers
+                .Where(p => !p.IsConnected && now - p.LastSeenUtc > timeout && !p.IsEliminated)
+                .ToList();
+
+            foreach (var player in toRemove)
+            {
+                player.IsEliminated = true;   // выбывает из игры
+                Console.WriteLine($"[CLEANUP] Игрок {player.Name} (ID {player.Id}) удалён за долгое отсутствие");
+            }
+
+            // Если после очистки живых игроков не осталось – игра заканчивается
+            if (IsGameStarted && !ArrayPlayers.Any(p => !p.IsEliminated))
+            {
+                IsGameStarted = false;
+                OnGameEnded?.Invoke("Все игроки отключились. Игра завершена.");
+                UpdateAll();
+            }
+        }
         // Теперь метод принимает объект Player напрямую
         public void AssignRandomStats(Player player)
         {
@@ -127,11 +169,21 @@ namespace BunkerGameWeb
             player.Relation = ConfigCharacterRelation.GetConfig(index, rnd);
         }
 
-        public int AddAndInitializePlayer()
+        public int AddAndInitializePlayer(string sessionKey = "")
         {
             if (IsGameStarted) return -1;
 
-            // ✅ Если список пуст, сбрасываем счетчик
+            // ✅ ПРОВЕРКА: Есть ли уже игрок с таким SessionKey?
+            if (!string.IsNullOrEmpty(sessionKey))
+            {
+                var existingPlayer = ArrayPlayers.FirstOrDefault(p => p.SessionKey == sessionKey);
+                if (existingPlayer != null)
+                {
+                    Console.WriteLine($"[LOG] Игрок уже существует с SessionKey {sessionKey}, возвращаем ID {existingPlayer.Id}");
+                    return existingPlayer.Id;
+                }
+            }
+
             if (ArrayPlayers.Count == 0)
             {
                 _idCounter = -1;
@@ -142,17 +194,19 @@ namespace BunkerGameWeb
             var newPlayer = new Player
             {
                 Id = newId,
-                Name = $"Выживший #{newId}"
+                SessionKey = sessionKey,
+                Name = $"Выживший #{newId}",
+                IsConnected = true,
+                LastSeenUtc = DateTime.UtcNow
             };
 
             AssignRandomStats(newPlayer);
             ArrayPlayers.Add(newPlayer);
             UpdateAll();
 
-            Console.WriteLine($"[LOG] Игрок {newId} добавлен в список");
+            Console.WriteLine($"[LOG] Новый игрок {newId} добавлен (SessionKey: {sessionKey})");
             return newId;
         }
-
         public void OpenTrait(int playerId, PlayerFieldType traitName)
         {
             var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
@@ -161,21 +215,24 @@ namespace BunkerGameWeb
             if (player.IsSelectionConfirmed) return;
 
             // Работаем с временным списком
+            bool isOpen = player.ListOpenedTypes.Contains(traitName);
             bool isInPending = player.PendingOpenedTypes.Contains(traitName);
-
-            if (isInPending)
+            if (!isOpen)
             {
-                // Убираем из временного списка
-                player.PendingOpenedTypes.Remove(traitName);
-                player.CurrentOpenedCard--;
-            }
-            else
-            {
-                // Добавляем во временный список
-                if (player.CurrentOpenedCard < player.CountNeedOpen)
+                if (isInPending)
                 {
-                    player.PendingOpenedTypes.Add(traitName);
-                    player.CurrentOpenedCard++;
+                    // Убираем из временного списка
+                    player.PendingOpenedTypes.Remove(traitName);
+                    player.CurrentOpenedCard--;
+                }
+                else
+                {
+                    // Добавляем во временный список
+                    if (player.CurrentOpenedCard < player.CountNeedOpen)
+                    {
+                        player.PendingOpenedTypes.Add(traitName);
+                        player.CurrentOpenedCard++;
+                    }
                 }
             }
 
@@ -211,20 +268,30 @@ namespace BunkerGameWeb
 
         public async Task StartGameAsync()
         {
-            if (_isStarting || IsGameStarted) return; // Защита от двойного клика
+            if (_isStarting || IsGameStarted) return;
 
             _isStarting = true;
             await WaiterToStart();
 
-            // Повторная проверка после ожидания
             if (AreAllReady && ArrayPlayers.Count >= 2)
             {
-                // Генерируем бункер при старте
                 BunkerStats = GetTextForBunker();
                 IsGameStarted = true;
+                GameRounds = 1;
+                CurrentPlayerIndex = 0;
+                PlayersWhoMovedThisRound.Clear(); // ✅ Очищаем список ходивших
+
+                CheckWinCondition();
+
+                // Подготовка первого игрока
+                if (ArrayPlayers.Count > 0)
+                {
+                    ArrayPlayers[0].CountNeedOpen = 2; // В первом раунде 2 карты
+                    ArrayPlayers[0].CurrentOpenedCard = 0;
+                }
+
                 UpdateAll();
             }
-
         }
         private async Task WaiterToStart()
         {
@@ -236,49 +303,81 @@ namespace BunkerGameWeb
 
         // Метод для завершения хода
         // Метод NextTurn остается, но вызывается ПОСЛЕ подтверждения
+
         public void NextTurn()
         {
-            if (ArrayPlayers.Count == 0) return;
+            if (!IsGameStarted) return;
 
-            // Применяем выбор текущего игрока перед передачей хода
-            var currentPlayer = ArrayPlayers[CurrentPlayerIndex];
-            currentPlayer.ApplyPendingSelections();
-            currentPlayer.IsSelectionConfirmed = false;
-            currentPlayer.CurrentOpenedCard = 0;
-
-            // Остальная логика NextTurn без изменений...
-            CurrentPlayerIndex++;
-
-            if (CurrentPlayerIndex >= ArrayPlayers.Count)
+            if (ArrayPlayers == null || ArrayPlayers.Count == 0)
             {
                 CurrentPlayerIndex = 0;
+                return;
+            }
+
+            // Применяем выбор текущего игрока
+            if (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < ArrayPlayers.Count)
+            {
+                var currentPlayer = ArrayPlayers[CurrentPlayerIndex];
+                currentPlayer.ApplyPendingSelections();
+                currentPlayer.IsSelectionConfirmed = false;
+                currentPlayer.CurrentOpenedCard = 0;
+
+                // Отмечаем что игрок походил
+                PlayersWhoMovedThisRound.Add(currentPlayer.Id);
+                Console.WriteLine($"[NEXT] Игрок {currentPlayer.Name} завершил ход. Походило: {PlayersWhoMovedThisRound.Count}");
+            }
+
+            // Считаем сколько живых игроков
+            int aliveCount = ArrayPlayers.Count(p => !p.IsEliminated);
+
+            // Если все живые походили - конец раунда
+            if (PlayersWhoMovedThisRound.Count >= aliveCount)
+            {
+                GameRounds++;
+                PlayersWhoMovedThisRound.Clear();
+                Console.WriteLine($"[NEXT] Раунд {GameRounds} начат!");
+
+                // Сбрасываем на первого живого
+                CurrentPlayerIndex = 0;
+
+                // Проверка на голосование
                 if (IsVotingRound())
                 {
                     StartVoting();
-                    UpdateAll();
                     return;
                 }
-                GameRounds++;
             }
-
-            while (ArrayPlayers[CurrentPlayerIndex].IsEliminated)
+            else
             {
-                CurrentPlayerIndex++;
-                if (CurrentPlayerIndex >= ArrayPlayers.Count)
+                // Ищем следующего живого
+                int nextIndex = (CurrentPlayerIndex + 1) % ArrayPlayers.Count;
+                int checkedCount = 0;
+
+                while (checkedCount < ArrayPlayers.Count)
                 {
-                    CurrentPlayerIndex = 0;
-                    GameRounds++;
+                    if (!ArrayPlayers[nextIndex].IsEliminated && !PlayersWhoMovedThisRound.Contains(ArrayPlayers[nextIndex].Id))
+                    {
+                        CurrentPlayerIndex = nextIndex;
+                        break;
+                    }
+                    nextIndex = (nextIndex + 1) % ArrayPlayers.Count;
+                    checkedCount++;
                 }
             }
 
-            var nextPlayer = ArrayPlayers[CurrentPlayerIndex];
-            nextPlayer.CurrentOpenedCard = 0;
-            nextPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
+            // Подготовка следующего игрока
+            if (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < ArrayPlayers.Count)
+            {
+                var nextPlayer = ArrayPlayers[CurrentPlayerIndex];
+                nextPlayer.CurrentOpenedCard = 0;
+                nextPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
+                nextPlayer.PendingOpenedTypes.Clear();
+                nextPlayer.IsSelectionConfirmed = false;
+                Console.WriteLine($"[NEXT] Ход -> {nextPlayer.Name} (Раунд {GameRounds})");
+            }
 
             UpdateAll();
         }
-
-
         public bool IsVotingRound()
         {
             // 1. Первое голосование на 3 раунде
@@ -322,11 +421,19 @@ namespace BunkerGameWeb
             }
         }
 
+        // Вызывайте проверку после каждого исключения игрока
         public void AnalyzeVotesAndEliminate()
         {
             try
             {
-                // 1. Считаем результаты
+                if (ArrayPlayers == null || ArrayPlayers.Count == 0)
+                {
+                    IsVotingActive = false;
+                    Votes.Clear();
+                    UpdateAll();
+                    return;
+                }
+
                 var votingResults = Votes.Values
                     .GroupBy(id => id)
                     .Select(g => new { PlayerId = g.Key, Count = g.Count() })
@@ -335,8 +442,6 @@ namespace BunkerGameWeb
 
                 if (votingResults.Count > 0)
                 {
-                    // ПРАВИЛЬНОЕ СРАВНЕНИЕ (0 и 1 элементы списка)
-                    // Ничья, если кандидатов > 1 И у первого столько же голосов, сколько у второго
                     bool isDraw = votingResults.Count > 1 && votingResults[0].Count == votingResults[1].Count;
 
                     if (!isDraw)
@@ -347,6 +452,9 @@ namespace BunkerGameWeb
                         {
                             loser.IsEliminated = true;
                             Console.WriteLine($"Игрок {loser.Name} изгнан.");
+
+                            // ✅ Проверяем условие победы после исключения
+                            CheckWinCondition();
                         }
                     }
                     else
@@ -355,26 +463,62 @@ namespace BunkerGameWeb
                     }
                 }
 
-                // 2. ОБЯЗАТЕЛЬНЫЙ СБРОС (без него панель не исчезнет)
+                // Если игра закончена - не продолжаем
+                if (!IsGameStarted) return;
+
                 IsVotingActive = false;
                 Votes.Clear();
-
-                // 3. ПЕРЕХОД К СЛЕДУЮЩЕМУ ЭТАПУ
                 GameRounds++;
-                CurrentPlayerIndex = -1; // Сбрасываем, чтобы NextTurn начал с 0
-
-                NextTurn();
-                UpdateAll(); // Принудительно уведомляем UI
+                MoveToNextAlivePlayerSafe();
+                UpdateAll();
             }
             catch (Exception ex)
             {
-                // Если что-то пойдет не так, вы увидите это в консоли Visual Studio
                 Console.WriteLine($"ОШИБКА В ГОЛОСОВАНИИ: {ex.Message}");
+                IsVotingActive = false;
+                Votes.Clear();
+                UpdateAll();
             }
         }
+        private void MoveToNextAlivePlayerSafe()
+        {
+            if (ArrayPlayers == null || ArrayPlayers.Count == 0)
+            {
+                CurrentPlayerIndex = 0;
+                return;
+            }
 
+            int nextIndex = (CurrentPlayerIndex + 1) % ArrayPlayers.Count;
+            int checkedCount = 0;
+
+            // Ищем следующего живого игрока
+            while (checkedCount < ArrayPlayers.Count)
+            {
+                if (nextIndex >= 0 && nextIndex < ArrayPlayers.Count && !ArrayPlayers[nextIndex].IsEliminated)
+                {
+                    CurrentPlayerIndex = nextIndex;
+                    var nextPlayer = ArrayPlayers[CurrentPlayerIndex];
+                    nextPlayer.CurrentOpenedCard = 0;
+                    nextPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
+                    nextPlayer.PendingOpenedTypes.Clear();
+                    nextPlayer.IsSelectionConfirmed = false;
+                    Console.WriteLine($"[NEXT] Ход перешел к {nextPlayer.Name} (индекс {CurrentPlayerIndex})");
+                    return;
+                }
+
+                nextIndex = (nextIndex + 1) % ArrayPlayers.Count;
+                checkedCount++;
+            }
+
+            // Если не нашли живого - сбрасываем на 0
+            CurrentPlayerIndex = 0;
+            Console.WriteLine("[NEXT] Не найдено живых игроков, сброс на 0");
+        }
         public void FullRestart()
         {
+
+            _cleanupTimer?.Dispose();
+            _cleanupTimer = new Timer(_ => RemoveDisconnectedPlayers(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
             // 1. Очищаем списки
             ArrayPlayers.Clear();
             Votes.Clear();
@@ -385,11 +529,12 @@ namespace BunkerGameWeb
             GameRounds = 1;
             CurrentPlayerIndex = 0;
             _isStarting = false;
-
-            // ✅ ВАЖНО: Сбрасываем счетчик ID
             _idCounter = -1;
 
-            // 3. Уведомляем всех клиентов
+            // 3. Сбрасываем состояние бункера
+            BunkerStats = default;
+
+            // 4. Уведомляем всех клиентов
             UpdateAll();
         }
 
@@ -522,9 +667,7 @@ namespace BunkerGameWeb
         // Получить список всех полей (кроме специального условия)
         public List<PlayerFieldType> GetAllPlayerFields()
         {
-            return Enum.GetValues<PlayerFieldType>()
-                .Where(f => f != PlayerFieldType.SpecialCondition)
-                .ToList();
+            return [.. Enum.GetValues<PlayerFieldType>().Where(f => f != PlayerFieldType.SpecialCondition)];
         }
 
         // Обмен характеристиками между игроками
@@ -726,26 +869,85 @@ namespace BunkerGameWeb
 
         public BunkerStats GetTextForBunker()
         {
-            int idItemName;
-            int idItemDescription;
-            int itemCount;
             int idCatastropheText = Random.Shared.Next(0, CatastropheName.CatastropheText.Length);
-            int MaxPlayerCount = Random.Shared.Next(0, ArrayPlayers.Count);
+
+            int min = (ArrayPlayers.Count + 3) / 4;
+            int max = ArrayPlayers.Count * 2 / 3;
+
+            if (min > max) min = max;
+            int MaxPlayerCount = Random.Shared.Next(min, max + 1);
+
             int TimeToNeedInBunker = Random.Shared.Next(0, 72);
             int Count = Random.Shared.Next(0, 20);
+
+            // Массив структур - одна аллокация в куче
             BunkerItem[] items = new BunkerItem[Count];
+
             for (int i = 0; i < Count; i++)
             {
-                idItemName = Random.Shared.Next(0, CatastropheName.itemNames.Length);
-                itemCount = Random.Shared.Next(0, 40);
-                idItemDescription = Random.Shared.Next(0, CatastropheName.itemDescription.Length);
+                // Создаем структуру на стеке и копируем в массив
+                int idItemName = Random.Shared.Next(0, CatastropheName.itemNames.Length);
+                int itemCount = Random.Shared.Next(0, 40);
+                int idItemDescription = Random.Shared.Next(0, CatastropheName.itemDescription.Length);
+
                 items[i] = new BunkerItem(idItemName, idItemDescription, itemCount);
             }
-            return new(items, TimeToNeedInBunker, MaxPlayerCount, idCatastropheText)
+
+            // Структура BunkerStats создается и копируется при возврате
+            return new BunkerStats(items, TimeToNeedInBunker, MaxPlayerCount, idCatastropheText)
             {
                 IsCreate = true
             };
+        }        // Метод проверки условия победы
+        private void CheckWinCondition()
+        {
+            if (!IsGameStarted) return;
+            if (BunkerStats.MaxPlayerCount <= 0) return;
 
+            int alivePlayers = ArrayPlayers.Count(p => !p.IsEliminated);
+
+            if (alivePlayers <= BunkerStats.MaxPlayerCount)
+            {
+                // Условие победы выполнено!
+                IsGameStarted = false;
+                IsVotingActive = false;
+
+                var survivors = ArrayPlayers.Where(p => !p.IsEliminated).ToList();
+                string message = $"ИГРА ОКОНЧЕНА! Выжившие ({alivePlayers}/{BunkerStats.MaxPlayerCount}):\n";
+
+                Console.WriteLine(message);
+                OnGameEnded?.Invoke(message);
+                UpdateAll();
+            }
         }
+
+        public Dictionary<int, DateTime> LastSeen { get; set; } = [];
+
+        public void UpdatePlayerActivity(int playerId)
+        {
+            LastSeen[playerId] = DateTime.UtcNow;
+        }
+
+        public void RemoveInactivePlayers()
+        {
+            var timeout = TimeSpan.FromSeconds(30); // 30 секунд на переподключение
+            var now = DateTime.UtcNow;
+            var toRemove = LastSeen.Where(kv => now - kv.Value > timeout).Select(kv => kv.Key).ToList();
+
+            foreach (var playerId in toRemove)
+            {
+                var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
+                if (player != null && !player.IsEliminated)
+                {
+                    // Игрок не вернулся – исключаем из игры
+                    player.IsEliminated = true;
+                    Console.WriteLine($"[TIMEOUT] Игрок {player.Name} удалён за неактивность");
+                }
+                LastSeen.Remove(playerId);
+            }
+        }
+
+
     }
+
 }

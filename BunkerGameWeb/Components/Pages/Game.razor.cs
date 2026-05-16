@@ -1,127 +1,212 @@
 ﻿using BunkerGameWeb.Models;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace BunkerGameWeb.Components.Pages;
-// Ключевое слово partial связывает этот файл с .razor файлом
-public partial class Game
+
+public partial class Game : IDisposable
 {
     public string CurrentCatastrophe { get; set; } = string.Empty;
 
-#pragma warning disable CS8618 // Поле, не допускающее значения NULL, должно содержать значение, отличное от NULL, при выходе из конструктора. Рассмотрите возможность добавления модификатора "required" или объявления значения, допускающего значение NULL.
-    [Inject] public GameManager GameManager { get; set; }
-#pragma warning restore CS8618 // Поле, не допускающее значения NULL, должно содержать значение, отличное от NULL, при выходе из конструктора. Рассмотрите возможность добавления модификатора "required" или объявления значения, допускающего значение NULL.
-
-    private int MyId = 0; // В будущем здесь будет логика определения ID сессии
+    private int MyId = 0;
     private bool showBunkerInfo = false;
-    private Player? CurrentPlayer => GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == MyId);
+    private string _sessionKey = string.Empty;
+    private bool showAbilityTargetSelection = false;
+    private PlayerFieldType selectedTargetField = PlayerFieldType.Health;
+    private int selectedTargetPlayerId = -1;
+
+    [Parameter] public string RoomId { get; set; } = string.Empty;
+
+    private GameManager? GameManager => string.IsNullOrEmpty(RoomId) ? null : RoomManager.GetGame(RoomId);
+    private Player? CurrentPlayer => GameManager?.ArrayPlayers.FirstOrDefault(p => p.Id == MyId);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // Пытаемся достать ID из сессии
-            var result = await SessionStorage.GetAsync<int>("PlayerId");
-
-            if (result.Success && result.Value != 0)
+            if (string.IsNullOrEmpty(RoomId))
             {
-                // Проверяем, есть ли такой игрок в списке
-                var existingPlayer = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == result.Value);
-                if (existingPlayer != null)
-                {
-                    // Игрок существует - восстанавливаем
-                    MyId = result.Value;
-                    Console.WriteLine($"[LOG] Игрок {MyId} восстановлен из сессии");
-                }
-                else
-                {
-                    // Игрока нет (был рестарт) - создаем нового
-                    await SessionStorage.DeleteAsync("PlayerId");
-                    TryJoin();
-                    Console.WriteLine($"[LOG] Старая сессия удалена, создан новый игрок {MyId}");
-                }
-            }
-            else
-            {
-                // Нет сессии - создаем нового
-                TryJoin();
-                Console.WriteLine($"[LOG] Новый игрок {MyId}");
+                Navigation.NavigateTo("/lobby");
+                return;
             }
 
+            var game = RoomManager?.GetGame(RoomId);
+            if (game == null)
+            {
+                StateHasChanged();
+                return;
+            }
+
+            await InitializeSessionAndJoin();
             StateHasChanged();
         }
     }
 
-    private void TryJoin()
+    private async Task InitializeSessionAndJoin()
     {
-        MyId = GameManager.AddAndInitializePlayer();
-
-        if (MyId == -1)
+        // Получаем или создаём уникальный ключ сессии
+        var sessionResult = await SessionStorage.GetAsync<string>("SessionKey");
+        if (sessionResult.Success && !string.IsNullOrEmpty(sessionResult.Value))
         {
-            // Логика для тех, кто не успел: например, перенаправить на страницу "Игра уже идет"
-            // или просто показать сообщение в UI
+            _sessionKey = sessionResult.Value;
         }
         else
         {
-            ValueTask valueTask = SessionStorage.SetAsync("PlayerId", MyId);
-            _ = valueTask;
+            _sessionKey = Guid.NewGuid().ToString();
+            await SessionStorage.SetAsync("SessionKey", _sessionKey);
         }
+
+        // Получаем сохранённый ID игрока
+        var playerIdResult = await SessionStorage.GetAsync<int>("PlayerId");
+        int savedPlayerId = playerIdResult.Success ? playerIdResult.Value : 0;
+
+        await TryJoin(savedPlayerId);
     }
 
-    private async void HandleNotify()
+    private async Task TryJoin(int savedPlayerId = 0)
+    {
+        if (GameManager == null) return;
+
+        if (GameManager.IsGameStarted)
+        {
+            MyId = -1;
+            return;
+        }
+
+        // ✅ СНАЧАЛА проверяем, нет ли игрока с таким SessionKey в GameManager.ArrayPlayers
+        var existingBySession = GameManager.ArrayPlayers.FirstOrDefault(p => p.SessionKey == _sessionKey);
+
+        if (existingBySession != null)
+        {
+            // Такой игрок уже существует! Используем его
+            MyId = existingBySession.Id;
+            existingBySession.IsConnected = true;
+            existingBySession.LastSeenUtc = DateTime.UtcNow;
+
+            // Добавляем в активные подключения комнаты
+            RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
+
+            Console.WriteLine($"[REJOIN] Игрок {MyId} найден по SessionKey, восстанавливаем");
+            return;
+        }
+
+        // Проверяем, есть ли игрок с такой сессией в активных подключениях комнаты
+        var playersInRoom = RoomManager.GetPlayersWithSessions(RoomId);
+        var existingSession = playersInRoom.FirstOrDefault(p => p.SessionKey == _sessionKey);
+
+        if (existingSession.PlayerId != 0)
+        {
+            MyId = existingSession.PlayerId;
+            Console.WriteLine($"[REJOIN] Игрок {MyId} переподключился (сессия {_sessionKey})");
+            return;
+        }
+
+        // Проверяем, есть ли сохранённый игрок
+        if (savedPlayerId != 0)
+        {
+            var existingPlayer = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == savedPlayerId);
+            if (existingPlayer != null)
+            {
+                MyId = savedPlayerId;
+                existingPlayer.IsConnected = true;
+                existingPlayer.LastSeenUtc = DateTime.UtcNow;
+                existingPlayer.SessionKey = _sessionKey; // ✅ Обновляем SessionKey
+                RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
+                Console.WriteLine($"[RESTORE] Игрок {MyId} восстановлен (сессия {_sessionKey})");
+                return;
+            }
+        }
+
+        // Создаём нового игрока (передаём SessionKey)
+        MyId = GameManager.AddAndInitializePlayer(_sessionKey);
+
+        if (MyId != -1)
+        {
+            await SessionStorage.SetAsync("PlayerId", MyId);
+            RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
+            Console.WriteLine($"[JOIN] Новый игрок {MyId} (сессия {_sessionKey})");
+        }
+    }
+    private void HandleNotify()
     {
         try
         {
-            // InvokeAsync переключает выполнение на "родной" поток этого игрока
-            await InvokeAsync(StateHasChanged);
+            if (GameManager != null)
+            {
+                InvokeAsync(StateHasChanged);
+            }
         }
         catch (ObjectDisposedException)
         {
-            // Игрок мог уже закрыть вкладку, просто игнорируем
+            // Игрок закрыл вкладку
         }
     }
+
     protected override void OnInitialized()
     {
-        // Подписываемся через промежуточный метод
-        GameManager.OnNotify += HandleNotify;
+        GameManager?.OnNotify += HandleNotify;
     }
-
 
     public void Dispose()
     {
-        GameManager.OnNotify -= HandleNotify;
+        GameManager?.OnNotify -= HandleNotify;
         GC.SuppressFinalize(this);
     }
 
     public async Task HandleStartClick()
     {
+        if (GameManager == null) return;
         if (GameManager._isStarting || GameManager.IsGameStarted) return;
-        // Вызываем общую логику в синглтоне
         await GameManager.StartGameAsync();
         Console.WriteLine("Запустилось");
     }
 
-
-    void Open(PlayerFieldType trait, int pId)
+    private async Task HandleRestart()
     {
-        if (GameManager.ArrayPlayers == null || GameManager.ArrayPlayers.Count == 0) return;
+        try
+        {
+            GameManager?.FullRestart();
+            await SessionStorage.DeleteAsync("PlayerId");
+            MyId = 0;
+            Navigation?.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при рестарте: {ex.Message}");
+            Navigation?.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    private async Task LeaveRoom()
+    {
+        if (!string.IsNullOrEmpty(RoomId) && MyId >= 0 && !string.IsNullOrEmpty(_sessionKey))
+        {
+            RoomManager.LeaveRoom(RoomId, MyId, _sessionKey);
+            await SessionStorage.DeleteAsync("PlayerId");
+            await SessionStorage.DeleteAsync("SessionKey");
+            StateHasChanged();
+            Navigation.NavigateTo("/lobby", forceLoad: true);
+        }
+    }
+
+    private void Open(PlayerFieldType trait, int pId)
+    {
+        if (GameManager?.ArrayPlayers == null || GameManager.ArrayPlayers.Count == 0) return;
 
         var currentPlayer = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == MyId);
         if (currentPlayer == null) return;
 
-        // ✅ Если умение уже использовано - ход завершен
         if (currentPlayer.SpecialCondition.IsUsed)
         {
             return;
         }
 
-        // Проверяем специальное умение
         if (trait == PlayerFieldType.SpecialCondition && !currentPlayer.SpecialCondition.IsUsed)
         {
             ShowAbilityPanel();
             return;
         }
 
-        // Стандартная логика открытия
         bool alreadySelected = currentPlayer.ListOpenedTypes.Contains(trait);
 
         if (!alreadySelected)
@@ -138,49 +223,41 @@ public partial class Game
 
         StateHasChanged();
     }
-    private async Task HandleRestart()
-    {
-        try
-        {
-            // Сбрасываем данные на сервере
-            GameManager?.FullRestart();
-
-            // Очищаем сессию
-            if (SessionStorage != null)
-            {
-                await SessionStorage.DeleteAsync("PlayerId");
-            }
-
-            // Сбрасываем локальный ID
-            MyId = 0;
-
-            // Переход на главную с полной перезагрузкой
-            Navigation?.NavigateTo("/", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при рестарте: {ex.Message}");
-            Navigation?.NavigateTo("/", forceLoad: true);
-        }
-    }
 
     private void ConfirmSelection()
     {
-        if (CurrentPlayer == null) return;
+        if (CurrentPlayer == null || GameManager == null) return;
         GameManager.ConfirmSelection(MyId);
     }
 
     private void PassTurn()
     {
-        if (CurrentPlayer == null) return;
+        if (CurrentPlayer == null || GameManager == null) return;
+        Console.WriteLine($"[UI] PassTurn нажат игроком {MyId}");
+        CurrentPlayer.IsSelectionConfirmed = false;
         GameManager.NextTurn();
+        StateHasChanged();
+    }
+
+    private void ConfirmTurn()
+    {
+        if (CurrentPlayer == null || GameManager == null) return;
+        Console.WriteLine($"[UI] ConfirmTurn нажат игроком {MyId}");
+
+        if (!CurrentPlayer.IsSelectionConfirmed && CurrentPlayer.CurrentOpenedCard == CurrentPlayer.CountNeedOpen)
+        {
+            GameManager.ConfirmSelection(MyId);
+            Console.WriteLine("[UI] Выбор подтвержден");
+        }
+
+        GameManager.NextTurn();
+        StateHasChanged();
     }
 
     private void CancelSelection()
     {
-        if (CurrentPlayer == null) return;
+        if (CurrentPlayer == null || GameManager == null) return;
 
-        // Закрываем все временно выбранные характеристики
         foreach (var type in CurrentPlayer.PendingOpenedTypes.ToList())
         {
             GameManager.OpenTrait(MyId, type);
@@ -189,22 +266,15 @@ public partial class Game
         GameManager.CancelSelection(MyId);
     }
 
-
-    private bool showAbilityTargetSelection = false;
-    private PlayerFieldType selectedTargetField = PlayerFieldType.Health;
-    private int selectedTargetPlayerId = -1;
-
     private void ShowAbilityPanel()
     {
         if (CurrentPlayer == null) return;
 
-        // Предзаполняем поле из умения
         selectedTargetField = CurrentPlayer.SpecialCondition.PlayerFieldType;
 
-        // Если тип Swap - выбираем первого доступного игрока
         if (CurrentPlayer.SpecialCondition.Type == CharacterSpecialConditionType.Swap)
         {
-            var firstOther = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id != MyId && !p.IsEliminated);
+            var firstOther = GameManager?.ArrayPlayers.FirstOrDefault(p => p.Id != MyId && !p.IsEliminated);
             if (firstOther != null)
             {
                 selectedTargetPlayerId = firstOther.Id;
@@ -214,46 +284,62 @@ public partial class Game
         showAbilityTargetSelection = true;
     }
 
-    private string GetAbilityDescription(CharacterSpecialCondition ability)
+    private static string GetAbilityDescription(CharacterSpecialCondition ability) => ability.Type switch
     {
-        return ability.Type switch
-        {
-            CharacterSpecialConditionType.Swap => $"Обменяться характеристикой с другим игроком",
-            CharacterSpecialConditionType.Rerole => $"Заменить характеристику на случайную",
-            CharacterSpecialConditionType.Upgrade => $"Улучшить характеристику (+20%)",
-            CharacterSpecialConditionType.Snow => $"Показать случайную характеристику другого игрока",
-            CharacterSpecialConditionType.SnowYourself => $"Показать дополнительную свою характеристику",
-            _ => "Неизвестное умение"
-        };
-    }
+        CharacterSpecialConditionType.Swap => "Обменяться характеристикой с другим игроком",
+        CharacterSpecialConditionType.Rerole => "Заменить характеристику на случайную",
+        CharacterSpecialConditionType.Upgrade => "Улучшить характеристику (+20%)",
+        CharacterSpecialConditionType.Snow => "Показать случайную характеристику другого игрока",
+        CharacterSpecialConditionType.SnowYourself => "Показать дополнительную свою характеристику",
+        _ => "Неизвестное умение"
+    };
 
     private void UseAbility()
     {
-        if (CurrentPlayer == null) return;
+        if (CurrentPlayer == null || GameManager == null) return;
 
-        bool success = false;
-
-        switch (CurrentPlayer.SpecialCondition.Type)
+        var success = CurrentPlayer.SpecialCondition.Type switch
         {
-            case CharacterSpecialConditionType.Swap:
-                success = GameManager.UseSpecialAbility(MyId, selectedTargetField);
-                break;
-
-            default:
-                success = GameManager.UseSpecialAbility(MyId, selectedTargetField);
-                break;
-        }
+            CharacterSpecialConditionType.Swap => GameManager.UseSpecialAbility(MyId, selectedTargetField),
+            _ => GameManager.UseSpecialAbility(MyId, selectedTargetField),
+        };
 
         if (success)
         {
-            Console.WriteLine($"Умение использовано успешно!");
+            Console.WriteLine("Умение использовано успешно!");
             showAbilityTargetSelection = false;
-
-            // ✅ ВАЖНО: Умение считается как использование хода
-            // Завершаем ход автоматически
             GameManager.NextTurn();
         }
 
         StateHasChanged();
+    }
+
+    private async Task EmergencyExit()
+    {
+        try
+        {
+            // Выходим из комнаты (если есть)
+            RoomManager.LeaveRoom(RoomId, MyId, _sessionKey);
+
+            // Полная очистка сессии
+            await SessionStorage.DeleteAsync("PlayerId");
+            await SessionStorage.DeleteAsync("SessionKey");
+            await SessionStorage.DeleteAsync("RoomId");
+
+            // Сбрасываем всё
+            MyId = -1;
+            _sessionKey = string.Empty;
+
+            if (GameManager == null || CurrentPlayer == null || CurrentCatastrophe == null)
+                RoomManager.RemoveRoom(RoomId);
+            // Переход в лобби
+            Navigation.NavigateTo("/lobby", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] EmergencyExit: {ex.Message}");
+            // Всё равно пытаемся уйти
+            Navigation.NavigateTo("/lobby", forceLoad: true);
+        }
     }
 }
