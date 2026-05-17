@@ -7,7 +7,14 @@
 @inject RoomManager RoomManager
 @implements IDisposable
 
-@if (GameManager == null || CurrentPlayer == null)
+
+<div style="position: fixed; bottom: 0; left: 0; background: black; color: lime; font-size: 10px; z-index: 9999;">
+    MyId: @MyId |
+    GameManager: @(GameManager != null ? "OK" : "NULL") |
+    Players: @(GameManager?.ArrayPlayers.Count ?? 0) |
+    CurrentPlayer: @(CurrentPlayer != null ? CurrentPlayer.Name : "NULL")
+</div>
+@if (GameManager == null)
 {
     <div class="text-center p-5">
         <h2 style="color: #dc3545;">Игрок не найден или комната недоступна!</h2>
@@ -48,8 +55,30 @@ else
                                 Цель
                             </div>
                             <div class="goal-text">
-                                Прожить в бункере <span class="goal-highlight">@GameManager.BunkerStats.TimeToNeedInBunker месяцев</span>.
-                                Бункер рассчитан максимум на <span class="goal-highlight">@GameManager.BunkerStats.MaxPlayerCount человек</span>.
+                                Прожить в бункере 
+                                <span class="goal-highlight">@GameManager.BunkerStats.TimeToNeedInBunker 
+                                    @if (GameManager.BunkerStats.TimeToNeedInBunker > 4)
+                                    {
+                                        <span> месяцев</span>                        
+                                    }
+                                    else if (GameManager.BunkerStats.TimeToNeedInBunker <= 1)
+                                    {
+                                        <span> месяц</span>
+                                    }
+                                    else
+                                    {
+                                        <span> месяца</span>
+                                    }
+                                    </span >.
+                                Бункер рассчитан максимум на <span class="goal-highlight">@GameManager.BunkerStats.MaxPlayerCount</span> 
+                                @if (GameManager.BunkerStats.MaxPlayerCount == 1)
+                                {
+                                    <span> Человека.</span>
+                                }
+                                else
+                                {
+                                    <span> Людей.</span>
+                                }
                                 Сейчас внутри <span class="goal-highlight">@GameManager.ArrayPlayers.Count</span>.
                                 @if (GameManager.ArrayPlayers.Count > GameManager.BunkerStats.MaxPlayerCount)
                                 {
@@ -61,14 +90,14 @@ else
                         @* РЕСУРСЫ БУНКЕРА *@
                         <div class="info-section">
                             <div class="info-section-title">
-                                <span class="info-section-icon"></span> Найденные предметы
+                                <span class="info-section-icon"></span> Содержимое бункера
                             </div>
                             <ul class="item-list">
                                 @foreach (var item in GameManager.BunkerStats.BunkerItems)
                                 {
                                     <li class="item-entry">
-                                        <span class="item-bullet">●</span>
-                                        @* <span>@GameManager.CatastropheName.itemNames[item.ItemName] </span>  *@
+@*                                         <span class="item-bullet">●</span>
+ *@                                     @* <span>@GameManager.CatastropheName.itemNames[item.ItemName] </span>  *@
                                         <span>@GameManager.CatastropheName.itemDescription[item.ItemDescription]</span>
                                         <span class="item-count">×@item.ItemCount</span>
                                     </li>
@@ -106,7 +135,7 @@ else
                     <button class="btn-ready @(CurrentPlayer.IsReady ? "is-ready" : "")"
                     disabled="@GameManager._isStarting"
                     @onclick="() => GameManager.ToggleReady(MyId)">
-                        @(GameManager._isStarting ? "ЗАПУСК..." : (CurrentPlayer.IsReady ? "✓ ГОТОВ" : "ГОТОВНОСТЬ"))
+                        @(GameManager._isStarting ? "ЗАПУСК..." : (CurrentPlayer.IsReady ?  "ГОТОВ" : "ГОТОВНОСТЬ"))
                     </button>
 
                     @if (GameManager.AreAllReady && !GameManager._isStarting)
@@ -193,57 +222,49 @@ else
                         }
                     </div>
                     @* Панель выбора цели для умения *@
-                    @if (GameManager != null && GameManager.IsGameStarted && showAbilityTargetSelection)
+                    @if (showAbilityTargetSelection)
                     {
-                        <div class="ability-overlay" @onclick="() => showAbilityTargetSelection = false">
-                            <div class="ability-panel" @onclick:stopPropagation="true">
-                                <div class="ability-title">
-                                    ВЫБЕРИТЕ ЦЕЛЬ ДЛЯ УМЕНИЯ
-                                </div>
+                        <div class="ability-overlay">
+                            <div class="ability-panel">
+                                <div class="ability-title">ВЫБЕРИТЕ ЦЕЛЬ ДЛЯ УМЕНИЯ</div>
 
                                 <div class="ability-description">
                                     @GetAbilityDescription(CurrentPlayer.SpecialCondition)
                                 </div>
 
-                                @* Выбор характеристики *@
+                                @* ТОЛЬКО ВЫБОР ИГРОКА *@
                                 <div class="ability-section">
-                                    <div class="ability-section-title">Характеристика:</div>
-                                    <select class="ability-select" @bind="selectedTargetField">
-                                        @foreach (var field in GameManager.GetAllPlayerFields())
-                                        {
-                                            <option value="@field">@GameManager.GetFieldDisplayName(field)</option>
-                                        }
-                                    </select>
-                                </div>
-
-                                @* Выбор игрока (для обмена) *@
-                                @if (GameManager != null && GameManager.IsGameStarted && CurrentPlayer.SpecialCondition.Type == CharacterSpecialConditionType.Swap)
-                                {
-                                    <div class="ability-section">
-                                        <div class="ability-section-title">Обменяться с:</div>
+                                    @if (CurrentPlayer.SpecialCondition.Type != CharacterSpecialConditionType.Upgrade)
+                                    {
+                                        <div class="ability-section-title">
+                                            @(CurrentPlayer.SpecialCondition.Type == CharacterSpecialConditionType.Swap ? "Обменяться с:" : "Применить к:")
+                                        </div>
+                                        @* В разметке - просто и понятно *@
                                         <select class="ability-select" @bind="selectedTargetPlayerId">
-                                            @foreach (var player in GameManager.ArrayPlayers.Where(p => p.Id != MyId && !p.IsEliminated))
+                                            @foreach (var player in GetAvailableTargets())
                                             {
-                                                <option value="@player.Id">@player.Name</option>
+                                                <option value="@player.Id">
+                                                    @player.Name @(player.Id == MyId ? "(Я)" : "")
+                                                </option>
                                             }
                                         </select>
-                                    </div>
-                                }
+                                    }
+                                    else
+                                    {
+                                        selectedTargetPlayerId = GameManager.ArrayPlayers[CurrentPlayer.Id].Id;
+                                    }
+                                </div>
 
                                 <div class="ability-buttons">
-                                    <button class="ability-btn confirm" @onclick="UseAbility">
-                                        ✓ ИСПОЛЬЗОВАТЬ
-                                    </button>
-                                    <button class="ability-btn cancel" @onclick="() => showAbilityTargetSelection = false">
-                                        ✕ ОТМЕНА
-                                    </button>
+                                    <button class="ability-btn confirm" @onclick="UseAbility">✓ ИСПОЛЬЗОВАТЬ</button>
+                                    <button class="ability-btn cancel" @onclick="() => showAbilityTargetSelection = false">✕ ОТМЕНА</button>
                                 </div>
                             </div>
                         </div>
                     }
 
-                    @* Панель умения *@
-                    @if (GameManager != null && GameManager.IsGameStarted && CurrentPlayer != null && !CurrentPlayer.SpecialCondition.IsUsed && MyId == GameManager.CurrentTurnPlayerId)
+                    @* Панель умения *@                    
+                    @if (GameManager != null && GameManager.IsGameStarted && CurrentPlayer != null && !CurrentPlayer.SpecialCondition.IsUsed && MyId == GameManager.CurrentTurnPlayerId && GameManager.GameRounds > 2)
                     {
                         <div class="p-3 border rounded mb-3" style="background-color: #1a1515; border-color: #8b0000;">
                             <div class="d-flex justify-content-between align-items-center">
@@ -262,6 +283,7 @@ else
                             </small>
                         </div>
                     }
+
                     @* Инфо-панель хода *@
                     @if (GameManager != null && GameManager.IsGameStarted && MyId == GameManager.CurrentTurnPlayerId)
                     {
@@ -284,19 +306,13 @@ else
                                     @if (CurrentPlayer != null && !CurrentPlayer.IsSelectionConfirmed && CurrentPlayer.CurrentOpenedCard > 0)
                                     {
                                         <button class="btn btn-outline-warning btn-sm" @onclick="CancelSelection">
-                                            ↩ Отменить
+                                            Отменить выбор
                                         </button>
                                     }
                                     @if (CurrentPlayer != null && !CurrentPlayer.IsSelectionConfirmed && CurrentPlayer.CurrentOpenedCard == CurrentPlayer.CountNeedOpen)
                                     {
                                         <button class="btn btn-success px-4 fw-bold" @onclick="ConfirmSelection">
-                                            ✓ ПОДТВЕРДИТЬ
-                                        </button>
-                                    }
-                                    @if (CurrentPlayer != null && CurrentPlayer.IsSelectionConfirmed)
-                                    {
-                                        <button class="btn btn-warning px-4 fw-bold" @onclick="PassTurn">
-                                            ▶ ПЕРЕДАТЬ ХОД
+                                            ПОДТВЕРДИТЬ ВЫБОР
                                         </button>
                                     }
                                 </div>
@@ -322,7 +338,7 @@ else
                 {
                     <div class="p-4 border rounded mb-4 shadow" style="background-color: #1a1515; border-color: #8b0000 !important;">
                         <h3 class="text-center mb-3" style="color: #ff4500;"> ГОЛОСОВАНИЕ НА ВЫБЫВАНИЕ </h3>
-                        @if (GameManager.Votes.ContainsKey(MyId))
+                        @if (CurrentPlayer != null && GameManager.Votes.ContainsKey(MyId) && !CurrentPlayer.IsEliminated)
                         {
                             <div class="text-center text-muted">Голос принят. Ожидание: @GameManager.Votes.Count / @GameManager.ArrayPlayers.Count(p => !p.IsEliminated)</div>
                         }
@@ -356,30 +372,31 @@ else
                                 <div class="card-body p-0">
                                     <div class="trait-group">
                                         <div class="group-title">Личность</div>
-                                        @renderTrait(PlayerFieldType.BiologicalSex, "Пол", player.BiologicalSex.IsOpened, player.Id, GameManager.ConfigCharacterBiologicalSex.Text[player.BiologicalSex.NameTrait])
-                                        @renderTrait(PlayerFieldType.Age, "Возраст", player.Age.IsOpened, player.Id, $"{player.Age.Amount} лет. ({GameManager.ConfigCharacterAge.Text[player.Age.NameTrait]})")
-                                        @renderTrait(PlayerFieldType.BodyBuild, "Тело", player.BodyBuild.IsOpened, player.Id, GameManager.ConfigCharacterBodyBuild.Text[player.BodyBuild.NameTrait])
-                                        @renderTrait(PlayerFieldType.Reproduction, "Репродукция", player.Reproduction.IsOpened, player.Id, $"{GameManager.ConfigCharacterReproduction.Text[player.Reproduction.NameTrait]} ({player.Reproduction.FinalAmount}%)")
+                                        @RenderTraitWithTooltip(PlayerFieldType.BiologicalSex, "Пол", player.BiologicalSex.IsOpened, player.Id, GameManager.ConfigCharacterBiologicalSex.Text[player.BiologicalSex.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Age, "Возраст", player.Age.IsOpened, player.Id, $"{player.Age.Amount} лет. ({GameManager.ConfigCharacterAge.Text[player.Age.NameTrait]})")
+                                        @RenderTraitWithTooltip(PlayerFieldType.BodyBuild, "Тело", player.BodyBuild.IsOpened, player.Id, GameManager.ConfigCharacterBodyBuild.Text[player.BodyBuild.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Reproduction, "Репродукция", player.Reproduction.IsOpened, player.Id, $"{GameManager.ConfigCharacterReproduction.Text[player.Reproduction.NameTrait]} ({player.Reproduction.FinalAmount}%)")
                                     </div>
                                     <div class="trait-group">
                                         <div class="group-title">Профессия и навыки</div>
-                                        @renderTrait(PlayerFieldType.Profession, "Профессия", player.Profession.IsOpened, player.Id, GameManager.ConfigCharacterProfession.Text[player.Profession.NameTrait])
-                                        @renderTrait(PlayerFieldType.Knowledge, "Знания", player.Knowledge.IsOpened, player.Id, $"{GameManager.ConfigCharacterKnowledge.Text[player.Knowledge.NameTrait]} ({player.Knowledge.FinalAmount} лет.)")
-                                        @renderTrait(PlayerFieldType.Hobby, "Хобби", player.Hobby.IsOpened, player.Id, GameManager.ConfigCharacterHobby.Text[player.Hobby.NameTrait])
-                                        @renderTrait(PlayerFieldType.Trait, "Черта", player.Trait.IsOpened, player.Id, GameManager.ConfigCharacterTrait.Text[player.Trait.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Profession, "Профессия", player.Profession.IsOpened, player.Id, GameManager.ConfigCharacterProfession.Text[player.Profession.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Knowledge, "Знания", player.Knowledge.IsOpened, player.Id, $"{GameManager.ConfigCharacterKnowledge.Text[player.Knowledge.NameTrait]} ({player.Knowledge.FinalAmount} лет.)")
+                                        @RenderTraitWithTooltip(PlayerFieldType.Hobby, "Хобби", player.Hobby.IsOpened, player.Id, GameManager.ConfigCharacterHobby.Text[player.Hobby.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Trait, "Черта", player.Trait.IsOpened, player.Id, GameManager.ConfigCharacterTrait.Text[player.Trait.NameTrait])
                                     </div>
                                     <div class="trait-group">
                                         <div class="group-title">Состояние</div>
-                                        @renderTrait(PlayerFieldType.Health, "Здоровье", player.Health.IsOpened, player.Id, GameManager.ConfigCharacterHealth.Text[player.Health.NameTrait])
-                                        @renderTrait(PlayerFieldType.Phobia, "Фобия", player.Phobia.IsOpened, player.Id, GameManager.ConfigCharacterPhobia.Text[player.Phobia.NameTrait])
-                                        @renderTrait(PlayerFieldType.Secret, "Секрет", player.Secret.IsOpened, player.Id, GameManager.ConfigCharacterSecret.Text[player.Secret.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Health, "Здоровье", player.Health.IsOpened, player.Id, GameManager.ConfigCharacterHealth.Text[player.Health.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Phobia, "Фобия", player.Phobia.IsOpened, player.Id, GameManager.ConfigCharacterPhobia.Text[player.Phobia.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Secret, "Секрет", player.Secret.IsOpened, player.Id, GameManager.ConfigCharacterSecret.Text[player.Secret.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Vision, "Видиние катастрофы", player.Secret.IsOpened, player.Id, GameManager.ConfigCharacterVision.Text[player.Vision.NameTrait])
                                     </div>
                                     <div class="trait-group">
                                         <div class="group-title">Багаж и Инфо</div>
-                                        @renderTrait(PlayerFieldType.Inventory, "Багаж", player.Inventory.IsOpened, player.Id, GameManager.ConfigCharacterInventory.Text[player.Inventory.NameTrait])
-                                        @renderTrait(PlayerFieldType.AdditionalInformation, "Доп. инфо", player.AdditionalInformation.IsOpened, player.Id, GameManager.ConfigCharacterAdditionalInformation.Text[player.AdditionalInformation.NameTrait])
-                                        @renderTrait(PlayerFieldType.SpecialCondition, "Спец. карта", player.SpecialCondition.IsOpened, player.Id, GameManager.ConfigCharacterSpecialCondition.Text[player.SpecialCondition.NameTrait])
-                                        @renderTrait(PlayerFieldType.Relation, "Отношение", player.Relation.IsOpened, player.Id, GameManager.ConfigCharacterRelation.Text[player.Relation.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Inventory, "Багаж", player.Inventory.IsOpened, player.Id, GameManager.ConfigCharacterInventory.Text[player.Inventory.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.AdditionalInformation, "Доп. инфо", player.AdditionalInformation.IsOpened, player.Id, GameManager.ConfigCharacterAdditionalInformation.Text[player.AdditionalInformation.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.SpecialCondition, "Спец. карта", player.SpecialCondition.IsOpened, player.Id, GameManager.ConfigCharacterSpecialCondition.Text[player.SpecialCondition.NameTrait])
+                                        @RenderTraitWithTooltip(PlayerFieldType.Relation, "Отношение", player.Relation.IsOpened, player.Id, GameManager.ConfigCharacterRelation.Text[player.Relation.NameTrait])
                                     </div>
                                 </div>
                             </div>
@@ -448,5 +465,82 @@ else
         </div>
     };
 
+    @code {
+        private string GetTooltipPosition(PlayerFieldType fieldType)
+        {
+            // Для верхних характеристик (профессия, возраст) - показываем снизу
+            var topFields = new[] {
+            PlayerFieldType.BiologicalSex,
+            PlayerFieldType.Age,
+            PlayerFieldType.BodyBuild,
+            PlayerFieldType.Reproduction
+        };
+        
+            return topFields.Contains(fieldType) ? "bottom" : "top";
+        }
+    
+        private RenderFragment RenderTraitWithTooltip(PlayerFieldType fieldType, string label, bool isOpened, int playerId, string value) => __builder =>
+        {
+            var title = GetFieldDisplayName(fieldType);
+            var description = GetFieldDescription(fieldType);
+            var example = GetFieldExample(fieldType);
+            var position = GetTooltipPosition(fieldType);
+        
+            __builder.OpenElement(0, "div");
+            __builder.AddAttribute(1, "class", "trait-tooltip");
+        
+            // Характеристика
+            __builder.AddContent(2, renderTrait(fieldType, label, isOpened, playerId, value));
+        
+            // Тултип
+            __builder.OpenElement(3, "div");
+            __builder.AddAttribute(4, "class", $"tooltip-popup {position}");
+        
+            __builder.OpenElement(5, "div");
+            __builder.AddAttribute(6, "class", "tooltip-title");
+            __builder.AddContent(7, $"📖 {title}");
+            __builder.CloseElement();
+        
+            __builder.OpenElement(8, "div");
+            __builder.AddAttribute(9, "class", "tooltip-desc");
+            __builder.AddContent(10, description);
+            __builder.CloseElement();
+        
+            __builder.OpenElement(11, "div");
+            __builder.AddAttribute(12, "class", "tooltip-example");
+            __builder.AddContent(13, $"💡 {example}");
+            __builder.CloseElement();
+        
+            __builder.CloseElement(); // tooltip-popup
+            __builder.CloseElement(); // trait-tooltip
+        };
+    }
+
+}
+
+@* Шаблон для рендера характеристики с тултипом *@
+@code {
+    private void DebugState()
+    {
+        Console.WriteLine($"[DEBUG] MyId = {MyId}");
+        Console.WriteLine($"[DEBUG] RoomId = {RoomId}");
+        Console.WriteLine($"[DEBUG] GameManager null? {GameManager == null}");
+        
+        if (GameManager != null)
+        {
+            Console.WriteLine($"[DEBUG] ArrayPlayers.Count = {GameManager.ArrayPlayers.Count}");
+            foreach (var p in GameManager.ArrayPlayers)
+            {
+                Console.WriteLine($"[DEBUG]   Player: Id={p.Id}, Name={p.Name}, SessionKey={p.SessionKey}");
+            }
+        }
+        
+        var playersInRoom = RoomManager.GetPlayersWithSessions(RoomId);
+        Console.WriteLine($"[DEBUG] Players in RoomManager: {playersInRoom.Count}");
+        foreach (var (pid, skey) in playersInRoom)
+        {
+            Console.WriteLine($"[DEBUG]   RoomPlayer: Id={pid}, SessionKey={skey}");
+        }
+    }
 }
 }

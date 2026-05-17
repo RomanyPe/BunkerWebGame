@@ -94,23 +94,101 @@ public class ConsoleCommands
             case "quit":
                 _isRunning = false;
                 break;
-
+            case "debugroom":
+            case "droom":
+                CreateDebugRoom();
+                break;
+            case "transfer":
+            case "transferadmin":
+            case "giveowner":
+            case "adm":
+                if (parts.Length > 2)
+                {
+                    var roomId = parts[1].ToUpper();
+                    var targetPlayerName = parts[2];
+                    TransferAdmin(roomId, targetPlayerName);
+                }
+                else
+                {
+                    Console.WriteLine("Использование: transfer <ID комнаты> <имя игрока>");
+                    Console.WriteLine("Пример: transfer ABC123 Саня Штрих");
+                }
+                break;
             default:
                 Console.WriteLine($"Неизвестная команда: {cmd}. Введите 'help' для списка команд");
                 break;
         }
     }
+    private void TransferAdmin(string roomId, string targetPlayerName)
+    {
+        var game = _roomManager.GetGame(roomId);
+        if (game == null)
+        {
+            Console.WriteLine($"❌ Комната {roomId} не найдена");
+            return;
+        }
 
+        var targetPlayer = game.ArrayPlayers.FirstOrDefault(p =>
+            p.Name.Contains(targetPlayerName, StringComparison.OrdinalIgnoreCase));
+
+        if (targetPlayer == null)
+        {
+            Console.WriteLine($"❌ Игрок '{targetPlayerName}' не найден");
+            return;
+        }
+
+        // Просто перемещаем владельца в начало списка
+        var currentOwner = game.ArrayPlayers.FirstOrDefault(p => p.Id == 0);
+        if (currentOwner != null && currentOwner.Id != targetPlayer.Id)
+        {
+            // Меняем ID (0 становится у целевого игрока)
+            int oldOwnerId = currentOwner.Id;
+            int targetId = targetPlayer.Id;
+
+            currentOwner.Id = targetId;
+            targetPlayer.Id = oldOwnerId;
+
+            Console.WriteLine($"Права администратора переданы игроку {targetPlayer.Name}");
+            Console.WriteLine($"Новый ID владельца: {targetPlayer.Id}");
+        }
+    }
+    private void CreateDebugRoom()
+    {
+        var sessionKey = Guid.NewGuid().ToString();
+        string roomId = _roomManager.CreateRoom(sessionKey, "ТЕСТ");
+
+        var game = _roomManager.GetGame(roomId);
+        if (game != null)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                var playerSessionKey = Guid.NewGuid().ToString();
+                var playerId = game.AddAndInitializePlayer(playerSessionKey);
+                _roomManager.JoinRoom(roomId, playerId, playerSessionKey);
+                Console.WriteLine($"Добавлен тестовый игрок {playerId}");
+            }
+
+            foreach (var player in game.ArrayPlayers)
+            {
+                player.IsReady = true;
+            }
+
+            Console.WriteLine($"Тестовая комната создана: {roomId}");
+            Console.WriteLine($"Подключиться по адресу: http://localhost:5000/game/{roomId}");
+        }
+    }
     private static void ShowHelp()
     {
         Console.WriteLine("\n=== Доступные команды ===");
-        Console.WriteLine("rooms / list     - показать все комнаты");
-        Console.WriteLine("players <ID>     - показать игроков в комнате");
-        Console.WriteLine("clean / cleanup  - принудительная очистка пустых комнат");
-        Console.WriteLine("delete / remove <ID> - удалить конкретную комнату");
-        Console.WriteLine("kick <ID> <имя>  - кикнуть игрока из комнаты");
-        Console.WriteLine("help / ?         - показать эту справку");
-        Console.WriteLine("exit / quit      - выйти\n");
+        Console.WriteLine("rooms / list                                             - показать все комнаты");
+        Console.WriteLine("players <ID>                                             - показать игроков в комнате");
+        Console.WriteLine("clean / cleanup                                          - принудительная очистка пустых комнат");
+        Console.WriteLine("delete / remove <ID>                                     - удалить конкретную комнату");
+        Console.WriteLine("kick <ID> <имя>                                          - кикнуть игрока из комнаты");
+        Console.WriteLine("debugroom / droom                                        - автоматическое подготовка к тесту");
+        Console.WriteLine("adm / transfer / transferadmin / giveowner <ID> <имя>    - выдача прав администратора");
+        Console.WriteLine("help / ?                                                 - показать эту справку");
+        Console.WriteLine("exit / quit                                              - выйти\n");
     }
 
     private void ShowRooms()
@@ -127,7 +205,7 @@ public class ConsoleCommands
         foreach (var room in rooms)
         {
             var status = room.IsStarted ? "Игра идёт" : "Ожидание";
-            var password = room.HasPassword ? "🔒" : "🔓";
+            var password = room.HasPassword ? "Open" : "Close";
             Console.WriteLine($"  {password} {room.RoomId} - {room.PlayerCount} игроков - {status}");
         }
         Console.WriteLine();
@@ -145,7 +223,7 @@ public class ConsoleCommands
         Console.WriteLine($"\n=== Игроки в комнате {roomId} ===");
         foreach (var player in game.ArrayPlayers)
         {
-            var status = player.IsReady ? "✓ Готов" : "○ Не готов";
+            var status = player.IsReady ? "Готов" : "Не готов";
             var eliminated = player.IsEliminated ? " [Исключён]" : "";
             Console.WriteLine($"  {player.Id}: {player.Name} - {status}{eliminated}");
         }

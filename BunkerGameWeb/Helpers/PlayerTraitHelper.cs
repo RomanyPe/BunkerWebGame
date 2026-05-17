@@ -1,4 +1,7 @@
 ﻿using BunkerGameWeb.Models;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.VisualBasic.FileIO;
+using System.Diagnostics;
 
 namespace BunkerGameWeb.Helpers
 {
@@ -91,6 +94,14 @@ namespace BunkerGameWeb.Helpers
                     player.Relation.IsOpened = isOpened;
                     break;
             }
+            if (isOpened)
+            {
+                player.ListOpenedTypes.Add(traitName);
+            }
+            else
+            {
+                player.ListOpenedTypes.Remove(traitName);
+            }
         }
 
         // Метод для получения значения характеристики
@@ -182,6 +193,28 @@ namespace BunkerGameWeb.Helpers
             }
         }
 
+        public static List<PlayerFieldType> GetFieldHaveAmount()
+        {
+            return
+            [
+                PlayerFieldType.BiologicalSex, PlayerFieldType.Profession, PlayerFieldType.Health, PlayerFieldType.Hobby,
+                PlayerFieldType.Baggage, PlayerFieldType.Knowledge, PlayerFieldType.Reproduction
+            ];
+        }
+
+        public static List<PlayerFieldType> GetFieldNotHaveAmount() =>
+        [
+            PlayerFieldType.Age,
+            PlayerFieldType.BodyBuild,
+            PlayerFieldType.Phobia,
+            PlayerFieldType.Inventory,
+            PlayerFieldType.Trait,
+            PlayerFieldType.AdditionalInformation,
+            PlayerFieldType.Secret,
+            PlayerFieldType.Vision,
+            PlayerFieldType.Equipment,
+            PlayerFieldType.Relation
+        ];
         // Метод для получения FinalAmount характеристики
         public static float GetFinalAmount(Player player, PlayerFieldType fieldType)
         {
@@ -191,20 +224,11 @@ namespace BunkerGameWeb.Helpers
                 PlayerFieldType.Age => player.Age.Amount,
                 PlayerFieldType.Profession => player.Profession.FinalAmount,
                 PlayerFieldType.Health => player.Health.FinalAmount,
-                PlayerFieldType.BodyBuild => player.BodyBuild.FinalAmount,
                 PlayerFieldType.Hobby => player.Hobby.FinalAmount,
-                PlayerFieldType.Phobia => player.Phobia.FinalAmount,
-                PlayerFieldType.Inventory => player.Inventory.FinalAmount,
-                PlayerFieldType.Trait => player.Trait.FinalAmount,
-                PlayerFieldType.AdditionalInformation => player.AdditionalInformation.FinalAmount,
                 PlayerFieldType.SpecialCondition => 0f,
                 PlayerFieldType.Baggage => player.Baggage.FinalAmount,
                 PlayerFieldType.Knowledge => player.Knowledge.FinalAmount,
-                PlayerFieldType.Secret => player.Secret.FinalAmount,
                 PlayerFieldType.Reproduction => player.Reproduction.FinalAmount,
-                PlayerFieldType.Vision => player.Vision.FinalAmount,
-                PlayerFieldType.Equipment => player.Equipment.FinalAmount,
-                PlayerFieldType.Relation => player.Relation.FinalAmount,
                 _ => 0f
             };
         }
@@ -226,23 +250,8 @@ namespace BunkerGameWeb.Helpers
                 case PlayerFieldType.Health:
                     player.Health.FinalAmount = value;
                     break;
-                case PlayerFieldType.BodyBuild:
-                    player.BodyBuild.FinalAmount = value;
-                    break;
                 case PlayerFieldType.Hobby:
                     player.Hobby.FinalAmount = value;
-                    break;
-                case PlayerFieldType.Phobia:
-                    player.Phobia.FinalAmount = value;
-                    break;
-                case PlayerFieldType.Inventory:
-                    player.Inventory.FinalAmount = value;
-                    break;
-                case PlayerFieldType.Trait:
-                    player.Trait.FinalAmount = value;
-                    break;
-                case PlayerFieldType.AdditionalInformation:
-                    player.AdditionalInformation.FinalAmount = value;
                     break;
                 case PlayerFieldType.SpecialCondition:
                     // SpecialCondition не имеет FinalAmount
@@ -253,20 +262,8 @@ namespace BunkerGameWeb.Helpers
                 case PlayerFieldType.Knowledge:
                     player.Knowledge.FinalAmount = value;
                     break;
-                case PlayerFieldType.Secret:
-                    player.Secret.FinalAmount = value;
-                    break;
                 case PlayerFieldType.Reproduction:
                     player.Reproduction.FinalAmount = value;
-                    break;
-                case PlayerFieldType.Vision:
-                    player.Vision.FinalAmount = value;
-                    break;
-                case PlayerFieldType.Equipment:
-                    player.Equipment.FinalAmount = value;
-                    break;
-                case PlayerFieldType.Relation:
-                    player.Relation.FinalAmount = value;
                     break;
             }
         }
@@ -278,17 +275,10 @@ namespace BunkerGameWeb.Helpers
             {
                 PlayerFieldType.Profession => player.Profession.MaxAmount,
                 PlayerFieldType.Health => player.Health.MaxAmount,
-                PlayerFieldType.BodyBuild => player.BodyBuild.MaxAmount,
                 PlayerFieldType.Hobby => player.Hobby.MaxAmount,
-                PlayerFieldType.Phobia => player.Phobia.MaxAmount,
-                PlayerFieldType.Inventory => player.Inventory.MaxAmount,
-                PlayerFieldType.Trait => player.Trait.MaxAmount,
-                PlayerFieldType.AdditionalInformation => player.AdditionalInformation.MaxAmount,
                 PlayerFieldType.Knowledge => player.Knowledge.MaxAmount,
                 PlayerFieldType.Reproduction => player.Reproduction.MaxAmount,
                 PlayerFieldType.Baggage => player.Baggage.MaxAmount,
-                PlayerFieldType.Equipment => player.Equipment.MaxAmount,
-                PlayerFieldType.Relation => player.Relation.MaxAmount,
                 _ => 10f // Значение по умолчанию
             };
         }

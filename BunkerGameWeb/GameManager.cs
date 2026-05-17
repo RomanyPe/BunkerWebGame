@@ -1,6 +1,8 @@
 using BunkerGameWeb.Components.Pages;
 using BunkerGameWeb.Helpers;
 using BunkerGameWeb.Models;
+using System.Reflection.PortableExecutable;
+using System.Runtime.Intrinsics.Arm;
 
 namespace BunkerGameWeb
 {
@@ -86,6 +88,12 @@ namespace BunkerGameWeb
 
         private void RemoveDisconnectedPlayers()
         {
+            if (IsGameStarted && ArrayPlayers.Count > 0)
+            {
+                Console.WriteLine("[CLEANUP] Игра идёт, пропускаем удаление игроков");
+                return;
+            }
+
             var timeout = TimeSpan.FromSeconds(45); // даём 45 секунд на переподключение
             var now = DateTime.UtcNow;
             var toRemove = ArrayPlayers
@@ -127,22 +135,22 @@ namespace BunkerGameWeb
             player.Health = ConfigCharacterHealth.GetConfig(index, rnd);
 
             index = Random.Shared.Next(ConfigCharacterBodyBuild.Text.Length);
-            player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(index, rnd);
+            player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterHobby.Text.Length);
             player.Hobby = ConfigCharacterHobby.GetConfig(index, rnd);
 
             index = Random.Shared.Next(ConfigCharacterPhobia.Text.Length);
-            player.Phobia = ConfigCharacterPhobia.GetConfig(index, rnd);
+            player.Phobia = ConfigCharacterPhobia.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterInventory.Text.Length);
-            player.Inventory = ConfigCharacterInventory.GetConfig(index, rnd);
+            player.Inventory = ConfigCharacterInventory.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterTrait.Text.Length);
-            player.Trait = ConfigCharacterTrait.GetConfig(index, rnd);
+            player.Trait = ConfigCharacterTrait.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterAdditionalInformation.Text.Length);
-            player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(index, rnd);
+            player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterSpecialCondition.Text.Length);
             player.SpecialCondition = ConfigCharacterSpecialCondition.GetConfig(index, rnd);
@@ -154,19 +162,19 @@ namespace BunkerGameWeb
             player.Knowledge = ConfigCharacterKnowledge.GetConfig(index, rnd);
 
             index = Random.Shared.Next(ConfigCharacterSecret.Text.Length);
-            player.Secret = ConfigCharacterSecret.GetConfig(index, rnd);
+            player.Secret = ConfigCharacterSecret.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterReproduction.Text.Length);
             player.Reproduction = ConfigCharacterReproduction.GetConfig(index, rnd);
 
             index = Random.Shared.Next(ConfigCharacterVision.Text.Length);
-            player.Vision = ConfigCharacterVision.GetConfig(index, rnd);
+            player.Vision = ConfigCharacterVision.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterEquipment.Text.Length);
-            player.Equipment = ConfigCharacterEquipment.GetConfig(index, rnd);
+            player.Equipment = ConfigCharacterEquipment.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterRelation.Text.Length);
-            player.Relation = ConfigCharacterRelation.GetConfig(index, rnd);
+            player.Relation = ConfigCharacterRelation.GetConfig(index);
         }
 
         public int AddAndInitializePlayer(string sessionKey = "")
@@ -331,14 +339,16 @@ namespace BunkerGameWeb
             int aliveCount = ArrayPlayers.Count(p => !p.IsEliminated);
 
             // Если все живые походили - конец раунда
+            // Если все живые походили - конец раунда
             if (PlayersWhoMovedThisRound.Count >= aliveCount)
             {
                 GameRounds++;
                 PlayersWhoMovedThisRound.Clear();
                 Console.WriteLine($"[NEXT] Раунд {GameRounds} начат!");
 
-                // Сбрасываем на первого живого
-                CurrentPlayerIndex = 0;
+                // Ищем ПЕРВОГО ЖИВОГО игрока, а не просто индекс 0
+                CurrentPlayerIndex = ArrayPlayers.FindIndex(p => !p.IsEliminated);
+                if (CurrentPlayerIndex == -1) CurrentPlayerIndex = 0;
 
                 // Проверка на голосование
                 if (IsVotingRound())
@@ -381,10 +391,10 @@ namespace BunkerGameWeb
         public bool IsVotingRound()
         {
             // 1. Первое голосование на 3 раунде
-            if (GameRounds == 3) return true;
+            if (GameRounds == 4) return true;
 
             // 2. После 3 раунда голосование каждые 2 раунда (5, 7, 9...)
-            if (GameRounds > 3 && (GameRounds - 3) % 2 == 0) return true;
+            if (GameRounds > 4 && (GameRounds - 4) % 3 == 0) return true;
 
             return false;
         }
@@ -453,7 +463,7 @@ namespace BunkerGameWeb
                             loser.IsEliminated = true;
                             Console.WriteLine($"Игрок {loser.Name} изгнан.");
 
-                            // ✅ Проверяем условие победы после исключения
+                            // Проверяем условие победы после исключения
                             CheckWinCondition();
                         }
                     }
@@ -463,13 +473,36 @@ namespace BunkerGameWeb
                     }
                 }
 
-                // Если игра закончена - не продолжаем
                 if (!IsGameStarted) return;
 
                 IsVotingActive = false;
                 Votes.Clear();
-                GameRounds++;
-                MoveToNextAlivePlayerSafe();
+
+                // ✅ Находим первого живого игрока
+                CurrentPlayerIndex = ArrayPlayers.FindIndex(p => !p.IsEliminated);
+                if (CurrentPlayerIndex == -1) CurrentPlayerIndex = 0;
+
+                // ✅ КРИТИЧЕСКИ ВАЖНО: Сбрасываем состояние ходов для НОВОГО раунда
+                PlayersWhoMovedThisRound.Clear();
+
+                // ✅ Сбрасываем состояние выбора карт для ВСЕХ живых игроков
+                foreach (var player in ArrayPlayers.Where(p => !p.IsEliminated))
+                {
+                    player.CurrentOpenedCard = 0;
+                    player.PendingOpenedTypes.Clear();
+                    player.IsSelectionConfirmed = false;
+                    player.CountNeedOpen = GameRounds == 1 ? 2 : 1;
+                }
+
+                // ✅ Подготавливаем текущего игрока
+                var currentPlayer = ArrayPlayers[CurrentPlayerIndex];
+                currentPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
+                currentPlayer.CurrentOpenedCard = 0;
+                currentPlayer.PendingOpenedTypes.Clear();
+                currentPlayer.IsSelectionConfirmed = false;
+
+                Console.WriteLine($"[VOTE] Новый раунд {GameRounds}. Ходит {currentPlayer.Name}");
+
                 UpdateAll();
             }
             catch (Exception ex)
@@ -480,48 +513,42 @@ namespace BunkerGameWeb
                 UpdateAll();
             }
         }
-        private void MoveToNextAlivePlayerSafe()
-        {
-            if (ArrayPlayers == null || ArrayPlayers.Count == 0)
-            {
-                CurrentPlayerIndex = 0;
-                return;
-            }
-
-            int nextIndex = (CurrentPlayerIndex + 1) % ArrayPlayers.Count;
-            int checkedCount = 0;
-
-            // Ищем следующего живого игрока
-            while (checkedCount < ArrayPlayers.Count)
-            {
-                if (nextIndex >= 0 && nextIndex < ArrayPlayers.Count && !ArrayPlayers[nextIndex].IsEliminated)
-                {
-                    CurrentPlayerIndex = nextIndex;
-                    var nextPlayer = ArrayPlayers[CurrentPlayerIndex];
-                    nextPlayer.CurrentOpenedCard = 0;
-                    nextPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
-                    nextPlayer.PendingOpenedTypes.Clear();
-                    nextPlayer.IsSelectionConfirmed = false;
-                    Console.WriteLine($"[NEXT] Ход перешел к {nextPlayer.Name} (индекс {CurrentPlayerIndex})");
-                    return;
-                }
-
-                nextIndex = (nextIndex + 1) % ArrayPlayers.Count;
-                checkedCount++;
-            }
-
-            // Если не нашли живого - сбрасываем на 0
-            CurrentPlayerIndex = 0;
-            Console.WriteLine("[NEXT] Не найдено живых игроков, сброс на 0");
-        }
-        public void FullRestart()
+        public void FullRestart(bool againPlay = false)
         {
 
             _cleanupTimer?.Dispose();
             _cleanupTimer = new Timer(_ => RemoveDisconnectedPlayers(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
             // 1. Очищаем списки
-            ArrayPlayers.Clear();
-            Votes.Clear();
+            if (!againPlay) 
+            { 
+                ArrayPlayers.Clear();
+                Votes.Clear(); 
+            }
+            else
+            {
+                // 3. Сбрасываем всех игроков (делаем их живыми и неготовыми)
+                foreach (var player in ArrayPlayers)
+                {
+                    // Идентификация
+                    player.IsConnected = true;
+                    player.LastSeenUtc = DateTime.UtcNow;
+
+                    // Игровой статус
+                    player.IsReady = false;
+                    player.IsEliminated = false;
+                    player.IsWinner = false;
+                    player.IsSelectionConfirmed = false;
+
+                    // Характеристики (все сбрасываются на новые случайные значения при создании)
+                    AssignRandomStats(player);
+                    // Открытие карт
+                    player.CountNeedOpen = 0;
+                    player.CurrentOpenedCard = 0;
+                    player.PendingOpenedTypes = [];
+                    player.ListOpenedTypes = [];
+
+                }
+            }
 
             // 2. Сбрасываем системные переменные
             IsGameStarted = false;
@@ -538,90 +565,57 @@ namespace BunkerGameWeb
             UpdateAll();
         }
 
-
         // Использование специального умения
-        // Использование специального умения
-        public bool UseSpecialAbility(int playerId, PlayerFieldType? targetField = null)
+        // Новый метод - принимает ID цели, а характеристика берётся из умения
+        public bool UseSpecialAbility(int playerId, int targetPlayerId)
         {
             var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
             if (player == null || player.SpecialCondition.IsUsed) return false;
 
             var ability = player.SpecialCondition;
-            PlayerFieldType fieldToUse = targetField ?? ability.PlayerFieldType;
+            var targetPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == targetPlayerId);
+            if (targetPlayer == null) return false;
 
             bool success = false;
 
             switch (ability.Type)
             {
                 case CharacterSpecialConditionType.Swap:
-                    success = SwapTrait(playerId, fieldToUse);
+                    // Обмен характеристикой (которая задана в ability.PlayerFieldType)
+                    success = SwapTrait(playerId, targetPlayerId, ability.PlayerFieldType);
                     break;
 
                 case CharacterSpecialConditionType.Rerole:
-                    success = RerollTrait(playerId, fieldToUse);
+                    // Переброс своей характеристики
+                    success = RerollTrait(playerId, ability.PlayerFieldType);
                     break;
 
                 case CharacterSpecialConditionType.Upgrade:
-                    success = UpgradeTrait(playerId, fieldToUse);
+                    // Улучшение своей характеристики
+                    success = UpgradeTrait(playerId, ability.PlayerFieldType);
                     break;
 
                 case CharacterSpecialConditionType.Snow:
-                    success = ShowOtherTrait(playerId);
-                    break;
-
-                case CharacterSpecialConditionType.SnowYourself:
-                    success = ShowSelfTrait(playerId);
+                    // Показать чужую характеристику (случайную, не выбираем)
+                    success = ShowOtherTrait(playerId, targetPlayerId);
                     break;
             }
 
             if (success)
             {
                 player.SpecialCondition.IsUsed = true;
-
-                // Если это умение показа чужой карты - открываем случайную характеристику
-                if (ability.Type == CharacterSpecialConditionType.Snow)
-                {
-                    RevealRandomTraitOfOther(playerId);
-                }
-
                 UpdateAll();
+                Console.WriteLine($"[DEBUG] UseSpecialAbility: UpdateAll вызван");
             }
 
             return success;
         }
 
-        private void RevealRandomTraitOfOther(int playerId)
-        {
-            var currentPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
-            if (currentPlayer == null) return;
-
-            // Получаем список других живых игроков
-            var otherPlayers = ArrayPlayers.Where(p => p.Id != playerId && !p.IsEliminated).ToList();
-            if (otherPlayers.Count == 0) return;
-
-            // Выбираем случайного игрока
-            var randomPlayer = otherPlayers[Random.Shared.Next(otherPlayers.Count)];
-
-            // Получаем список неоткрытых характеристик
-            var unopenedFields = Enum.GetValues<PlayerFieldType>()
-                .Where(f => f != PlayerFieldType.SpecialCondition && !PlayerTraitHelper.IsOpened(randomPlayer, f))
-                .ToList();
-
-            if (unopenedFields.Count > 0)
-            {
-                // Открываем случайную характеристику
-                var randomField = unopenedFields[Random.Shared.Next(unopenedFields.Count)];
-                PlayerTraitHelper.SetOpened(randomPlayer, randomField, true);
-
-                Console.WriteLine($"[УМЕНИЕ] Открыта характеристика {randomField} игрока {randomPlayer.Name}");
-            }
-        }
-
         // Обмен характеристикой с другим игроком
-        private bool SwapTrait(int playerId, PlayerFieldType fieldType)
+        private bool SwapTrait(int playerId, int targetPlayerId, PlayerFieldType fieldType)
         {
             var currentPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
-            var targetPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == CurrentTurnPlayerId && p.Id != playerId);
+            var targetPlayer = ArrayPlayers[targetPlayerId];
 
             if (currentPlayer == null || targetPlayer == null) return false;
 
@@ -632,59 +626,6 @@ namespace BunkerGameWeb
             // Обмен значениями
             PlayerTraitHelper.SetValue(currentPlayer, fieldType, tempValue2);
             PlayerTraitHelper.SetValue(targetPlayer, fieldType, tempValue1);
-
-            currentPlayer.SpecialCondition.IsUsed = true;
-            UpdateAll();
-            return true;
-        }
-
-        // Добавьте метод для получения имени характеристики
-        public string GetFieldDisplayName(PlayerFieldType fieldType)
-        {
-            return fieldType switch
-            {
-                PlayerFieldType.BiologicalSex => "Пол",
-                PlayerFieldType.Age => "Возраст",
-                PlayerFieldType.Profession => "Профессия",
-                PlayerFieldType.Health => "Здоровье",
-                PlayerFieldType.BodyBuild => "Телосложение",
-                PlayerFieldType.Hobby => "Хобби",
-                PlayerFieldType.Phobia => "Фобия",
-                PlayerFieldType.Inventory => "Инвентарь",
-                PlayerFieldType.Trait => "Черта характера",
-                PlayerFieldType.AdditionalInformation => "Доп. информация",
-                PlayerFieldType.SpecialCondition => "Спец. условие",
-                PlayerFieldType.Baggage => "Багаж",
-                PlayerFieldType.Knowledge => "Знания",
-                PlayerFieldType.Secret => "Секрет",
-                PlayerFieldType.Reproduction => "Репродукция",
-                PlayerFieldType.Vision => "Видение",
-                PlayerFieldType.Equipment => "Снаряжение",
-                PlayerFieldType.Relation => "Отношение",
-                _ => "Неизвестно"
-            };
-        }
-        // Получить список всех полей (кроме специального условия)
-        public List<PlayerFieldType> GetAllPlayerFields()
-        {
-            return [.. Enum.GetValues<PlayerFieldType>().Where(f => f != PlayerFieldType.SpecialCondition)];
-        }
-
-        // Обмен характеристиками между игроками
-        private bool SwapTrait(int playerId, PlayerFieldType fieldType1, PlayerFieldType fieldType2)
-        {
-            var currentPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
-            var targetPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == CurrentTurnPlayerId && p.Id != playerId);
-
-            if (currentPlayer == null || targetPlayer == null) return false;
-
-            // Временное сохранение значений
-            var tempValue1 = PlayerTraitHelper.GetValue(currentPlayer, fieldType1);
-            var tempValue2 = PlayerTraitHelper.GetValue(targetPlayer, fieldType2);
-
-            // Обмен значениями
-            PlayerTraitHelper.SetValue(currentPlayer, fieldType1, tempValue2);
-            PlayerTraitHelper.SetValue(targetPlayer, fieldType2, tempValue1);
 
             currentPlayer.SpecialCondition.IsUsed = true;
             UpdateAll();
@@ -719,7 +660,7 @@ namespace BunkerGameWeb
                     break;
                 case PlayerFieldType.BodyBuild:
                     int bodyIndex = Random.Shared.Next(ConfigCharacterBodyBuild.Text.Length);
-                    player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(bodyIndex, rnd);
+                    player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(bodyIndex);
                     break;
                 case PlayerFieldType.Hobby:
                     int hobbyIndex = Random.Shared.Next(ConfigCharacterHobby.Text.Length);
@@ -727,19 +668,19 @@ namespace BunkerGameWeb
                     break;
                 case PlayerFieldType.Phobia:
                     int phobiaIndex = Random.Shared.Next(ConfigCharacterPhobia.Text.Length);
-                    player.Phobia = ConfigCharacterPhobia.GetConfig(phobiaIndex, rnd);
+                    player.Phobia = ConfigCharacterPhobia.GetConfig(phobiaIndex);
                     break;
                 case PlayerFieldType.Inventory:
                     int invIndex = Random.Shared.Next(ConfigCharacterInventory.Text.Length);
-                    player.Inventory = ConfigCharacterInventory.GetConfig(invIndex, rnd);
+                    player.Inventory = ConfigCharacterInventory.GetConfig(invIndex);
                     break;
                 case PlayerFieldType.Trait:
                     int traitIndex = Random.Shared.Next(ConfigCharacterTrait.Text.Length);
-                    player.Trait = ConfigCharacterTrait.GetConfig(traitIndex, rnd);
+                    player.Trait = ConfigCharacterTrait.GetConfig(traitIndex);
                     break;
                 case PlayerFieldType.AdditionalInformation:
                     int addIndex = Random.Shared.Next(ConfigCharacterAdditionalInformation.Text.Length);
-                    player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(addIndex, rnd);
+                    player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(addIndex);
                     break;
                 case PlayerFieldType.SpecialCondition:
                     int specIndex = Random.Shared.Next(ConfigCharacterSpecialCondition.Text.Length);
@@ -755,7 +696,7 @@ namespace BunkerGameWeb
                     break;
                 case PlayerFieldType.Secret:
                     int secretIndex = Random.Shared.Next(ConfigCharacterSecret.Text.Length);
-                    player.Secret = ConfigCharacterSecret.GetConfig(secretIndex, rnd);
+                    player.Secret = ConfigCharacterSecret.GetConfig(secretIndex);
                     break;
                 case PlayerFieldType.Reproduction:
                     int reproIndex = Random.Shared.Next(ConfigCharacterReproduction.Text.Length);
@@ -763,15 +704,15 @@ namespace BunkerGameWeb
                     break;
                 case PlayerFieldType.Vision:
                     int visionIndex = Random.Shared.Next(ConfigCharacterVision.Text.Length);
-                    player.Vision = ConfigCharacterVision.GetConfig(visionIndex, rnd);
+                    player.Vision = ConfigCharacterVision.GetConfig(visionIndex);
                     break;
                 case PlayerFieldType.Equipment:
                     int equipIndex = Random.Shared.Next(ConfigCharacterEquipment.Text.Length);
-                    player.Equipment = ConfigCharacterEquipment.GetConfig(equipIndex, rnd);
+                    player.Equipment = ConfigCharacterEquipment.GetConfig(equipIndex);
                     break;
                 case PlayerFieldType.Relation:
                     int relIndex = Random.Shared.Next(ConfigCharacterRelation.Text.Length);
-                    player.Relation = ConfigCharacterRelation.GetConfig(relIndex, rnd);
+                    player.Relation = ConfigCharacterRelation.GetConfig(relIndex);
                     break;
                 default:
                     return false;
@@ -801,37 +742,27 @@ namespace BunkerGameWeb
         }
 
         // Показать чужую характеристику
-        private bool ShowOtherTrait(int playerId)
+        private bool ShowOtherTrait(int playerId, int targetPlayerId)
         {
             var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
-            if (player == null) return false;
+            var targetPlayer = ArrayPlayers.FirstOrDefault(p => p.Id == targetPlayerId);
 
-            // Умение используется, но характеристика откроется в RevealRandomTraitOfOther
-            // Здесь просто подтверждаем использование
-            return true;
-        }
-
-        // Показать еще одну свою характеристику
-        private bool ShowSelfTrait(int playerId)
-        {
-            var player = ArrayPlayers.FirstOrDefault(p => p.Id == playerId);
-            if (player == null) return false;
-
-            // Увеличиваем лимит открываемых карт для себя
-            player.CountNeedOpen += 1;
-
-            // Открываем случайную неоткрытую характеристику
-            var unopenedFields = Enum.GetValues<PlayerFieldType>()
-                .Where(f => f != PlayerFieldType.SpecialCondition && !PlayerTraitHelper.IsOpened(player, f))
-                .ToList();
-
-            if (unopenedFields.Count > 0)
+            if (targetPlayer == null)
             {
-                var randomField = unopenedFields[Random.Shared.Next(unopenedFields.Count)];
-                PlayerTraitHelper.SetOpened(player, randomField, true);
-                Console.WriteLine($"[УМЕНИЕ] Открыта своя характеристика: {randomField}");
+                Console.WriteLine($"[ERROR] ShowOtherTrait: targetPlayer не найден (ID={targetPlayerId})");
+                return false;
             }
 
+            var fieldType = player.SpecialCondition.PlayerFieldType;
+            Console.WriteLine($"[DEBUG] ShowOtherTrait: {player.Name} показывает {fieldType} у {targetPlayer.Name}");
+
+            // Открываем характеристику у цели
+            PlayerTraitHelper.SetOpened(targetPlayer, fieldType, true);
+
+            // Проверяем, открылась ли
+            bool isOpened = PlayerTraitHelper.IsOpened(targetPlayer, fieldType);
+            Console.WriteLine($"[DEBUG] Характеристика {fieldType} открыта: {isOpened}");
+            UpdateAll();
             return true;
         }
 

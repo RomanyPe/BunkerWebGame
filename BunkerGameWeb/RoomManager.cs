@@ -18,11 +18,23 @@ namespace BunkerGameWeb
 
         public RoomManager()
         {
-            _cleanupTimer = new Timer(CleanupEmptyRooms, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+            _cleanupTimer = new Timer(CleanupEmptyRooms, null, TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(15));
+        }
+
+        public void RemovePlayerFromRoom(string roomId, int playerId)
+        {
+            if (_roomPlayers.TryGetValue(roomId, out var players))
+            {
+                var toRemove = players.FirstOrDefault(p => p.PlayerId == playerId);
+                if (toRemove.PlayerId != 0)
+                {
+                    players.Remove(toRemove);
+                    Console.WriteLine($"[ROOM] Игрок {playerId} удалён из списка комнаты {roomId}");
+                }
+            }
         }
 
         // Создать новую комнату
-
         public string CreateRoom(string sessionKey, string roomName, string password = "")
         {
             if (_rooms.Count >= MaxRooms)

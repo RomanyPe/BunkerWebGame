@@ -1,4 +1,5 @@
-﻿using BunkerGameWeb.Models;
+﻿using BunkerGameWeb.Helpers;
+using BunkerGameWeb.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
@@ -12,7 +13,6 @@ public partial class Game : IDisposable
     private bool showBunkerInfo = false;
     private string _sessionKey = string.Empty;
     private bool showAbilityTargetSelection = false;
-    private PlayerFieldType selectedTargetField = PlayerFieldType.Health;
     private int selectedTargetPlayerId = -1;
 
     [Parameter] public string RoomId { get; set; } = string.Empty;
@@ -24,6 +24,7 @@ public partial class Game : IDisposable
     {
         if (firstRender)
         {
+            DebugState();
             if (string.IsNullOrEmpty(RoomId))
             {
                 Navigation.NavigateTo("/lobby");
@@ -38,6 +39,17 @@ public partial class Game : IDisposable
             }
 
             await InitializeSessionAndJoin();
+
+            // ✅ Если игра идёт и CurrentPlayer = null - показываем ошибку
+            if (game.IsGameStarted && CurrentPlayer == null)
+            {
+                Console.WriteLine("[ERROR] Игра идёт, но CurrentPlayer не найден!");
+            }
+            if (MyId >= 0)
+            {
+                await SessionStorage.SetAsync("PlayerId", MyId);
+            }
+
             StateHasChanged();
         }
     }
@@ -58,68 +70,99 @@ public partial class Game : IDisposable
 
         // Получаем сохранённый ID игрока
         var playerIdResult = await SessionStorage.GetAsync<int>("PlayerId");
-        int savedPlayerId = playerIdResult.Success ? playerIdResult.Value : 0;
+
+        int? savedPlayerId = null;
+        if (playerIdResult.Success)
+        {
+            savedPlayerId = playerIdResult.Value;  // Может быть 0, 1, 2...
+        }
+        // else savedPlayerId остаётся null
 
         await TryJoin(savedPlayerId);
     }
 
-    private async Task TryJoin(int savedPlayerId = 0)
+    private async Task TryJoin(int? savedPlayerId = null)
     {
-        if (GameManager == null) return;
-
-        if (GameManager.IsGameStarted)
+        if (GameManager == null)
         {
             MyId = -1;
             return;
         }
 
-        // ✅ СНАЧАЛА проверяем, нет ли игрока с таким SessionKey в GameManager.ArrayPlayers
-        var existingBySession = GameManager.ArrayPlayers.FirstOrDefault(p => p.SessionKey == _sessionKey);
-
-        if (existingBySession != null)
+        // Если игра идёт - только восстановление существующего игрока
+        if (GameManager.IsGameStarted)
         {
-            // Такой игрок уже существует! Используем его
-            MyId = existingBySession.Id;
-            existingBySession.IsConnected = true;
-            existingBySession.LastSeenUtc = DateTime.UtcNow;
+            DebugState();
+            // 1. Ищем по SessionKey
+            var existingBySession = GameManager.ArrayPlayers.FirstOrDefault(p => p.SessionKey == _sessionKey);
 
-            // Добавляем в активные подключения комнаты
-            RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
-
-            Console.WriteLine($"[REJOIN] Игрок {MyId} найден по SessionKey, восстанавливаем");
-            return;
-        }
-
-        // Проверяем, есть ли игрок с такой сессией в активных подключениях комнаты
-        var playersInRoom = RoomManager.GetPlayersWithSessions(RoomId);
-        var existingSession = playersInRoom.FirstOrDefault(p => p.SessionKey == _sessionKey);
-
-        if (existingSession.PlayerId != 0)
-        {
-            MyId = existingSession.PlayerId;
-            Console.WriteLine($"[REJOIN] Игрок {MyId} переподключился (сессия {_sessionKey})");
-            return;
-        }
-
-        // Проверяем, есть ли сохранённый игрок
-        if (savedPlayerId != 0)
-        {
-            var existingPlayer = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == savedPlayerId);
-            if (existingPlayer != null)
+            if (existingBySession != null)
             {
-                MyId = savedPlayerId;
-                existingPlayer.IsConnected = true;
-                existingPlayer.LastSeenUtc = DateTime.UtcNow;
-                existingPlayer.SessionKey = _sessionKey; // ✅ Обновляем SessionKey
+                MyId = existingBySession.Id;
+                existingBySession.IsConnected = true;
+                existingBySession.LastSeenUtc = DateTime.UtcNow;
+                existingBySession.SessionKey = _sessionKey;
                 RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
-                Console.WriteLine($"[RESTORE] Игрок {MyId} восстановлен (сессия {_sessionKey})");
+                Console.WriteLine($"[REJOIN] Игрок {MyId} ({existingBySession.Name}) восстановлен по SessionKey");
+                return;
+            }
+
+            // 2. Ищем по сохранённому ID (если есть)
+            if (savedPlayerId.HasValue)
+            {
+                var existingById = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == savedPlayerId.Value);
+                if (existingById != null)
+                {
+                    MyId = existingById.Id;
+                    existingById.IsConnected = true;
+                    existingById.LastSeenUtc = DateTime.UtcNow;
+                    existingById.SessionKey = _sessionKey;
+                    RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
+                    Console.WriteLine($"[REJOIN] Игрок {MyId} ({existingById.Name}) восстановлен по SavedId={savedPlayerId}");
+                    return;
+                }
+            }
+
+            // 3. Не нашли - игрок не может играть
+            Console.WriteLine($"[ERROR] Не удалось восстановить игрока. SavedId={savedPlayerId}, SessionKey={_sessionKey}");
+            MyId = -1;
+            return;
+
+        }
+
+        //.......................Код для лобби (игра не началась).......................
+
+        // Проверяем по SessionKey
+        var existingBySessionLobby = GameManager.ArrayPlayers.FirstOrDefault(p => p.SessionKey == _sessionKey);
+        if (existingBySessionLobby != null)
+        {
+            MyId = existingBySessionLobby.Id;
+            existingBySessionLobby.IsConnected = true;
+            existingBySessionLobby.LastSeenUtc = DateTime.UtcNow;
+            existingBySessionLobby.SessionKey = _sessionKey;
+            RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
+            Console.WriteLine($"[REJOIN] Игрок {MyId} восстановлен в лобби по SessionKey");
+            return;
+        }
+
+        // Проверяем по сохранённому ID
+        if (savedPlayerId.HasValue)
+        {
+            var existingByIdLobby = GameManager.ArrayPlayers.FirstOrDefault(p => p.Id == savedPlayerId.Value);
+            if (existingByIdLobby != null)
+            {
+                MyId = existingByIdLobby.Id;
+                existingByIdLobby.IsConnected = true;
+                existingByIdLobby.LastSeenUtc = DateTime.UtcNow;
+                existingByIdLobby.SessionKey = _sessionKey;
+                RoomManager.JoinRoom(RoomId, MyId, _sessionKey);
+                Console.WriteLine($"[RESTORE] Игрок {MyId} восстановлен в лобби по SavedId={savedPlayerId}");
                 return;
             }
         }
 
-        // Создаём нового игрока (передаём SessionKey)
+        // Создаём нового игрока
         MyId = GameManager.AddAndInitializePlayer(_sessionKey);
-
         if (MyId != -1)
         {
             await SessionStorage.SetAsync("PlayerId", MyId);
@@ -228,6 +271,7 @@ public partial class Game : IDisposable
     {
         if (CurrentPlayer == null || GameManager == null) return;
         GameManager.ConfirmSelection(MyId);
+        PassTurn();
     }
 
     private void PassTurn()
@@ -235,21 +279,6 @@ public partial class Game : IDisposable
         if (CurrentPlayer == null || GameManager == null) return;
         Console.WriteLine($"[UI] PassTurn нажат игроком {MyId}");
         CurrentPlayer.IsSelectionConfirmed = false;
-        GameManager.NextTurn();
-        StateHasChanged();
-    }
-
-    private void ConfirmTurn()
-    {
-        if (CurrentPlayer == null || GameManager == null) return;
-        Console.WriteLine($"[UI] ConfirmTurn нажат игроком {MyId}");
-
-        if (!CurrentPlayer.IsSelectionConfirmed && CurrentPlayer.CurrentOpenedCard == CurrentPlayer.CountNeedOpen)
-        {
-            GameManager.ConfirmSelection(MyId);
-            Console.WriteLine("[UI] Выбор подтвержден");
-        }
-
         GameManager.NextTurn();
         StateHasChanged();
     }
@@ -270,11 +299,12 @@ public partial class Game : IDisposable
     {
         if (CurrentPlayer == null) return;
 
-        selectedTargetField = CurrentPlayer.SpecialCondition.PlayerFieldType;
-
+        // Для Swap - автоматически выбираем первого доступного игрока
         if (CurrentPlayer.SpecialCondition.Type == CharacterSpecialConditionType.Swap)
         {
-            var firstOther = GameManager?.ArrayPlayers.FirstOrDefault(p => p.Id != MyId && !p.IsEliminated);
+            var firstOther = GameManager?.ArrayPlayers
+                .FirstOrDefault(p => p.Id != MyId && !p.IsEliminated);
+
             if (firstOther != null)
             {
                 selectedTargetPlayerId = firstOther.Id;
@@ -283,26 +313,49 @@ public partial class Game : IDisposable
 
         showAbilityTargetSelection = true;
     }
-
-    private static string GetAbilityDescription(CharacterSpecialCondition ability) => ability.Type switch
+    private static string GetAbilityDescription(CharacterSpecialCondition ability)
     {
-        CharacterSpecialConditionType.Swap => "Обменяться характеристикой с другим игроком",
-        CharacterSpecialConditionType.Rerole => "Заменить характеристику на случайную",
-        CharacterSpecialConditionType.Upgrade => "Улучшить характеристику (+20%)",
-        CharacterSpecialConditionType.Snow => "Показать случайную характеристику другого игрока",
-        CharacterSpecialConditionType.SnowYourself => "Показать дополнительную свою характеристику",
-        _ => "Неизвестное умение"
-    };
+        string TypeAbility = ability.Type switch
+        {
+            CharacterSpecialConditionType.Swap => "Обменяться характеристикой с другим игроком",
+            CharacterSpecialConditionType.Rerole => "Заменить характеристику на случайную",
+            CharacterSpecialConditionType.Upgrade => "Улучшить характеристику (+20%)",
+            CharacterSpecialConditionType.Snow => "Показать случайную характеристику другого игрока",
+            _ => "Неизвестное умение"
+        };
+
+        string TypeField = ability.PlayerFieldType switch
+        {
+            PlayerFieldType.BiologicalSex => " (Пол)",
+            PlayerFieldType.Age => " (Возраст)",
+            PlayerFieldType.Profession => " (Профессия)",
+            PlayerFieldType.Health => " (Здоровье)",
+            PlayerFieldType.BodyBuild => "(Телосложение)",
+            PlayerFieldType.Hobby => " (Хобби)",
+            PlayerFieldType.Phobia => " (Фобия)",
+            PlayerFieldType.Inventory => " (Инвентарь)",
+            PlayerFieldType.Trait => " (Черта характера)",
+            PlayerFieldType.AdditionalInformation => " (Дополнительная информация)",
+            PlayerFieldType.SpecialCondition => " (Особое условие)",
+            PlayerFieldType.Baggage => " (Багаж)",
+            PlayerFieldType.Knowledge => " (Знания)",
+            PlayerFieldType.Secret => " (Секрет)",
+            PlayerFieldType.Reproduction => " (Репродукция)",
+            PlayerFieldType.Vision => " (Видение)",
+            PlayerFieldType.Equipment => " (Снаряжение)",
+            PlayerFieldType.Relation => " (Отношение)",
+            _ => " (Неизвестное поле)"
+        };
+
+        return TypeAbility + TypeField;
+    }
 
     private void UseAbility()
     {
         if (CurrentPlayer == null || GameManager == null) return;
 
-        var success = CurrentPlayer.SpecialCondition.Type switch
-        {
-            CharacterSpecialConditionType.Swap => GameManager.UseSpecialAbility(MyId, selectedTargetField),
-            _ => GameManager.UseSpecialAbility(MyId, selectedTargetField),
-        };
+        // Убираем selectedTargetField, он больше не нужен
+        var success = GameManager.UseSpecialAbility(MyId, selectedTargetPlayerId);
 
         if (success)
         {
@@ -310,10 +363,9 @@ public partial class Game : IDisposable
             showAbilityTargetSelection = false;
             GameManager.NextTurn();
         }
-
+        PlayerTraitHelper.SetOpened(CurrentPlayer, PlayerFieldType.SpecialCondition, true);
         StateHasChanged();
     }
-
     private async Task EmergencyExit()
     {
         try
@@ -330,8 +382,16 @@ public partial class Game : IDisposable
             MyId = -1;
             _sessionKey = string.Empty;
 
-            if (GameManager == null || CurrentPlayer == null || CurrentCatastrophe == null)
+            if (GameManager == null || CurrentPlayer == null || CurrentCatastrophe == null || GameManager.ArrayPlayers.Count <= 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"[DENUG] GameManager = {GameManager != null}");
+                Console.WriteLine($"[DENUG] CurrentPlayer = {CurrentPlayer != null}");
+                Console.WriteLine($"[DENUG] CurrentCatastrophe = {CurrentCatastrophe != null}");
+                if (GameManager != null)
+                Console.WriteLine($"[DENUG] Count Players in Room = {GameManager.ArrayPlayers.Count}");
                 RoomManager.RemoveRoom(RoomId);
+            }
             // Переход в лобби
             Navigation.NavigateTo("/lobby", forceLoad: true);
         }
@@ -341,5 +401,133 @@ public partial class Game : IDisposable
             // Всё равно пытаемся уйти
             Navigation.NavigateTo("/lobby", forceLoad: true);
         }
+    }
+
+    private List<Player> GetAvailableTargets()
+    {
+        if (CurrentPlayer == null || GameManager == null) return [];
+
+        return CurrentPlayer.SpecialCondition.Type switch
+        {
+            // Переброс своей характеристики
+            CharacterSpecialConditionType.Rerole => [.. GameManager.ArrayPlayers.Where(p => !p.IsEliminated)],
+
+            // Показать чужую характеристику
+            CharacterSpecialConditionType.Snow => [.. GameManager.ArrayPlayers.Where(p => p.Id != MyId && !p.IsEliminated && !PlayerTraitHelper.IsOpened(p, CurrentPlayer.SpecialCondition.PlayerFieldType))],
+
+            // Обмен характеристикой
+            CharacterSpecialConditionType.Swap => [.. GameManager.ArrayPlayers.Where(p => p.Id != MyId && !p.IsEliminated)],
+
+            // Улучшение характеристики
+            CharacterSpecialConditionType.Upgrade => [.. GameManager.ArrayPlayers.Where(p => p.Id == MyId && !p.IsEliminated && !PlayerTraitHelper.IsOpened(p, CurrentPlayer.SpecialCondition.PlayerFieldType))],
+
+            _ => []
+        };
+    }
+
+
+    private static string GetFieldDescription(PlayerFieldType fieldType)
+    {
+        return fieldType switch
+        {
+            PlayerFieldType.BiologicalSex => "Влияет на физические характеристики и возможные мутации. Определяет базовые параметры выживания.",
+            PlayerFieldType.Age => "Влияет на выносливость, здоровье и жизненный опыт. Молодые быстрее адаптируются, пожилые имеют больше навыков.",
+            PlayerFieldType.Profession => "Определяет ваши профессиональные навыки. Даёт бонусы при определённых действиях в бункере.",
+            PlayerFieldType.Health => "Ваше физическое состояние. Влияет на сопротивляемость болезням и радиации. Низкое здоровье может привести к смерти.",
+            PlayerFieldType.BodyBuild => "Телосложение влияет на физическую силу, скорость и способность выполнять тяжёлые работы.",
+            PlayerFieldType.Hobby => "Хобби даёт дополнительные навыки и возможность проводить время с пользой в бункере.",
+            PlayerFieldType.Phobia => "Фобия - ваш страх. В определённых ситуациях может вызвать панику или снизить эффективность.",
+            PlayerFieldType.Inventory => "Предметы, которые вы взяли с собой. Могут спасти жизнь или помочь в сложных ситуациях.",
+            PlayerFieldType.Trait => "Черта характера определяет ваше поведение. Может помочь или навредить во взаимодействии с другими.",
+            PlayerFieldType.AdditionalInformation => "Дополнительная информация о персонаже. Может содержать важные подсказки или сюжетные детали.",
+            PlayerFieldType.SpecialCondition => "Особое умение вашего персонажа. Можно использовать один раз за игру для изменения ситуации.",
+            PlayerFieldType.Baggage => "Багаж - крупные предметы или груз. Могут быть полезны, но занимают место и замедляют движение.",
+            PlayerFieldType.Knowledge => "Знания и навыки. Влияют на способность чинить вещи, готовить еду и другие полезные действия.",
+            PlayerFieldType.Secret => "Ваш секрет. Может стать как преимуществом, так и уязвимостью, если другие игроки его узнают.",
+            PlayerFieldType.Reproduction => "Биологическая полезность. Влияет на возможность продолжения рода после катастрофы.",
+            PlayerFieldType.Vision => "Видение катастрофы - ваше мировоззрение. Влияет на психическое состояние и отношение к другим.",
+            PlayerFieldType.Equipment => "Снаряжение и одежда. Защищает от внешних факторов и даёт дополнительные возможности.",
+            PlayerFieldType.Relation => "Отношение к другим выжившим. Влияет на социальные взаимодействия и возможные союзы.",
+            _ => "Характеристика влияет на различные аспекты выживания в бункере."
+        };
+    }
+
+    private static string GetFieldExample(PlayerFieldType fieldType)
+    {
+        return fieldType switch
+        {
+            PlayerFieldType.BiologicalSex => "Пример: Может влиять на размножение или медицинские процедуры.",
+            PlayerFieldType.Age => "Пример: Ребёнок требует больше заботы, но быстрее учится. Пожилой имеет опыт, но слабее здоровьем.",
+            PlayerFieldType.Profession => "Пример: Врач может лечить раны, инженер - чинить оборудование.",
+            PlayerFieldType.Health => "Пример: Здоровье влияет на шансы выжить при радиации или голоде.",
+            PlayerFieldType.BodyBuild => "Пример: Крепкое телосложение даёт бонус к силе, худое - к скрытности.",
+            PlayerFieldType.Hobby => "Пример: Рыболов может ловить рыбу, музыкант - поднимать мораль.",
+            PlayerFieldType.Phobia => "Пример: Боязнь замкнутого пространства может вызвать панику в бункере.",
+            PlayerFieldType.Inventory => "Пример: Аптечка спасёт от смерти, нож поможет в драке или охоте.",
+            PlayerFieldType.Trait => "Пример: Храбрость помогает в экстремальных ситуациях, трусость - убегать.",
+            PlayerFieldType.AdditionalInformation => "Пример: 'Умеет взламывать замки' - откроет доступ к закрытым помещениям.",
+            PlayerFieldType.SpecialCondition => "Пример: 'Обмен характеристиками' - вы можете поменяться полезным навыком с другим игроком.",
+            PlayerFieldType.Baggage => "Пример: Генератор даёт электричество, но его тяжело переносить.",
+            PlayerFieldType.Knowledge => "Пример: Знание химии поможет создать лекарства или отравить еду.",
+            PlayerFieldType.Secret => "Пример: 'Я убил предыдущего лидера' - другие могут изгнать вас, если узнают.",
+            PlayerFieldType.Reproduction => "Пример: Высокий шанс передачи генов даёт преимущество при голосовании за выживание.",
+            PlayerFieldType.Vision => "Пример: Фаталист не боится смерти, оптимист поддерживает мораль группы.",
+            PlayerFieldType.Equipment => "Пример: Противогаз защитит от газов, бронежилет - от пуль.",
+            PlayerFieldType.Relation => "Пример: Лидер имеет авторитет, изгой никому не может доверять.",
+            _ => "Используйте характеристику в игровых ситуациях согласно логике и вашей фантазии."
+        };
+    }
+
+    private static string GetFieldDisplayName(PlayerFieldType fieldType) => fieldType switch
+    {
+        PlayerFieldType.BiologicalSex => "Пол",
+        PlayerFieldType.Age => "Возраст",
+        PlayerFieldType.Profession => "Профессия",
+        PlayerFieldType.Health => "Здоровье",
+        PlayerFieldType.BodyBuild => "Телосложение",
+        PlayerFieldType.Hobby => "Хобби",
+        PlayerFieldType.Phobia => "Фобия",
+        PlayerFieldType.Inventory => "Инвентарь",
+        PlayerFieldType.Trait => "Черта характера",
+        PlayerFieldType.AdditionalInformation => "Доп. информация",
+        PlayerFieldType.SpecialCondition => "Особое условие",
+        PlayerFieldType.Baggage => "Багаж",
+        PlayerFieldType.Knowledge => "Знания",
+        PlayerFieldType.Secret => "Секрет",
+        PlayerFieldType.Reproduction => "Репродукция",
+        PlayerFieldType.Vision => "Видение",
+        PlayerFieldType.Equipment => "Снаряжение",
+        PlayerFieldType.Relation => "Отношение",
+        _ => "Характеристика"
+    };
+    private async Task RestartGameInRoom()
+    {
+        if (GameManager == null) return;
+
+        // 1. Полностью сбрасываем состояние игры
+        GameManager.FullRestart();
+
+        // 2. Очищаем данные голосования
+        GameManager.Votes.Clear();
+        GameManager.IsVotingActive = false;
+
+        // 3. Сбрасываем всех игроков (делаем их живыми и неготовыми)
+        foreach (var player in GameManager.ArrayPlayers)
+        {
+            player.IsEliminated = false;
+            player.IsReady = false;
+            player.IsWinner = false;
+            player.IsSelectionConfirmed = false;
+            player.CurrentOpenedCard = 0;
+            player.PendingOpenedTypes.Clear();
+            player.ListOpenedTypes.Clear();
+            player.SpecialCondition.IsUsed = false;
+        }
+
+        // 5. Обновляем UI
+        GameManager.UpdateAll();
+        StateHasChanged();
+
+        Console.WriteLine("[GAME] Игра перезапущена в комнате");
     }
 }

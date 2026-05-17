@@ -1549,5 +1549,109 @@ html, body, .page, main {
     background: rgba(220, 53, 69, 0.2);
     border-radius: 3px;
 }
+body {
+    user-select: none;
+}
+
+/* Но разрешить выделение в полях ввода и текстовых областях */
+input, textarea, [contenteditable="true"] {
+    user-select: text;
+}
 
 
+
+
+/* ============ TOOLTIP ДЛЯ ХАРАКТЕРИСТИК ============ */
+/* ============ БЕЗОПАСНЫЙ ТУЛТИП ============ */
+.trait-tooltip {
+    position: relative;
+    display: block;
+    cursor: help;
+}
+
+/* Базовое окно тултипа */
+.tooltip-popup {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    z-index: 9999;
+    width: 260px;
+    background: #1a1a1a;
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+    /* Тултип сверху (для нижних карт) */
+    .tooltip-popup.top {
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-bottom: 10px;
+    }
+
+        .tooltip-popup.top::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: #ff4500 transparent transparent transparent;
+        }
+
+    /* Тултип снизу (для верхних карт) */
+    .tooltip-popup.bottom {
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 10px;
+    }
+
+        .tooltip-popup.bottom::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent #ff4500 transparent;
+        }
+
+/* Заголовок */
+.tooltip-title {
+    background: #0d0d0d;
+    color: #ff4500;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #ff4500;
+    border-radius: 8px 8px 0 0;
+}
+
+/* Описание */
+.tooltip-desc {
+    color: #ccc;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 8px 12px;
+    border-bottom: 1px solid #333;
+}
+
+/* Пример */
+.tooltip-example {
+    color: #888;
+    font-size: 10px;
+    font-style: italic;
+    padding: 6px 12px;
+}
+
+/* Показываем при наведении */
+.trait-tooltip:hover .tooltip-popup {
+    visibility: visible;
+    opacity: 1;
+}
