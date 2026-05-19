@@ -1,0 +1,1657 @@
+/* Красим самый нижний слой страницы */
+html, body {
+    background-color: #000000 !important;
+}
+
+/* Убираем белый фон у главного контейнера, где лежит контент */
+.page {
+    background-color: #000000 !important;
+}
+
+/* Красим верхнюю полоску (header), которая в шаблоне часто белая */
+.top-row {
+    background-color: #111111 !important;
+    border-bottom: 1px solid #333 !important;
+    color: white !important;
+}
+
+/* Если используешь стандартную боковую панель, сделаем её темнее */
+.sidebar {
+    background-image: linear-gradient(180deg, #050505 0%, #1a1a1a 100%) !important;
+}
+
+a, .btn-link {
+    color: #006bb7;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+.content {
+    padding-top: 1.1rem;
+}
+
+h1:focus {
+    outline: none;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid #f4652a;
+}
+
+.validation-message {
+    color: #f4652a;
+}
+
+.blazor-error-boundary {
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred."
+    }
+
+.darker-border-checkbox.form-check-input {
+    border-color: #5d5d5d;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+    color: var(--bs-secondary-color);
+    text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+    text-align: start;
+}
+
+/* Затемнение при наведении на свои ячейки */
+.clickable-trait {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+    .clickable-trait:hover {
+        background-color: rgba(0, 0, 0, 0.1) !important;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    }
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+
+/* ============ ГЛАВНАЯ ПАНЕЛЬ БУНКЕРА ============ */
+.bunker-panel {
+    background: linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%);
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem auto;
+    max-width: 1400px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    position: relative;
+}
+
+/* Легкая рамка свечения */
+.bunker-panel::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 20px;
+    right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 69, 0, 0.3), transparent);
+    border-radius: 50%;
+}
+
+/* Заголовки внутри бункера */
+.bunker-panel h1,
+.bunker-panel h2,
+.bunker-panel h3 {
+    color: #e0e0e0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+}
+
+/* Текст внутри бункера */
+.bunker-panel p,
+.bunker-panel span,
+.bunker-panel small {
+    color: #b0b0b0;
+}
+
+/* Разделители внутри бункера */
+.bunker-panel hr {
+    border-color: #2a2a2a;
+    margin: 1.5rem 0;
+}
+
+/* Ссылки внутри бункера */
+.bunker-panel a {
+    color: #ff8c66;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.bunker-panel a:hover {
+    color: #ff4500;
+    text-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+}
+/* Эффект сканирующей линии (как в старых мониторах) */
+.bunker-panel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient( 0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.03) 2px, rgba(0, 0, 0, 0.03) 4px );
+    pointer-events: none;
+    border-radius: 12px;
+}
+
+/* Пульсирующая точка (как индикатор работы) */
+.bunker-status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #ff4500;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: status-blink 2s infinite;
+    box-shadow: 0 0 8px #ff4500;
+}
+
+@keyframes status-blink {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+
+:root {
+    --bs-light: #0c0c0c; /* Здесь можно вставить свой HEX */
+    --bs-primary: #777777; /* Например, сделать основной синий темно-красным */
+}
+
+/* Класс для твоих ячеек, которые можно нажать */
+.clickable-trait {
+    cursor: pointer;
+    position: relative;
+}
+
+    .clickable-trait:hover {
+        background-color: #333 !important;
+        box-shadow: inset 0 0 10px rgba(255, 193, 7, 0.2); /* Легкое свечение */
+    }
+
+/* Стиль для замка (чтобы он был по центру и заметен) */
+.lock-icon {
+    color: #ffc107;
+    font-size: 1.1rem;
+    opacity: 0.7;
+}
+
+
+body {
+    background-color: #0d0d0d;
+    color: #e0e0e0;
+}
+
+/* 2. Контейнер таблицы */
+.table-responsive {
+    max-height: 400px; /* Ограничиваем высоту, чтобы не скроллить всю страницу */
+    overflow-y: auto;
+    border: 1px solid #333;
+}
+
+.table td, .table th {
+    min-width: 110px; /* Немного сузили колонки */
+    font-size: 0.8rem; /* Уменьшили шрифт для компактности */
+    padding: 8px !important; /* Уменьшили внутренние отступы */
+}
+
+/* 4. Заголовки (сделаем их золотистыми) */
+.table thead th {
+    background-color: #000 !important;
+    color: #ffc107 !important;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    border: none !important;
+}
+
+/* 5. Эффект для кликабельных карточек */
+.clickable-trait {
+    cursor: pointer;
+}
+
+    .clickable-trait:hover {
+        background-color: #2a2a2a !important;
+        color: #fff;
+        box-shadow: inset 0 0 15px rgba(255,193,7,0.1);
+    }
+
+.lock-symbol {
+    font-size: 1.5rem; /* Сделать замок огромным */
+    filter: drop-shadow(0 0 5px gold); /* Добавить свечение */
+    display: inline-block;
+    animation: lock-wiggle 3s infinite; /* Можно даже заставить его покачиваться */
+}
+
+@keyframes lock-wiggle {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+
+    10% {
+        transform: rotate(-10deg);
+    }
+
+    20% {
+        transform: rotate(10deg);
+    }
+}
+
+/* 7. Подсветка своей строки */
+tr[style*="border-left"] td:first-child {
+    color: #0d6efd;
+    text-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
+}
+
+html, body, .page, main {
+    background-color: #000000 !important;
+}
+
+/* Верхняя панель (где обычно ссылка About) */
+.top-row {
+    background-color: #0a0a0a !important;
+    border-bottom: 1px solid #333 !important;
+}
+
+    .top-row a {
+        color: #666 !important; /* Делаем текст ссылки About тусклым */
+    }
+
+/* Контентная область */
+.content {
+    padding: 0 !important; /* Убираем лишние отступы, чтобы игра была на весь экран */
+}
+
+/* Эффект при наведении */
+.btn-lg:hover {
+    background-color: #3e7a3e !important;
+    border-color: #55aa55 !important;
+    box-shadow: 0 0 10px rgba(71, 167, 71, 0.3) !important;
+}
+
+/* Эффект при клике */
+.btn-lg:active {
+    transform: translateY(2px);
+    background-color: #1e3d1e !important;
+}
+
+/* Стили карточек персонажей */
+.character-card {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+
+.card-header {
+    background: #000;
+    border-bottom: 1px solid #444;
+    padding: 8px 12px;
+}
+
+.player-name {
+    color: #ffc107;
+    font-size: 1rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.trait-group {
+    border-bottom: 2px solid #000;
+}
+
+.group-title {
+    background: #1a1a1a;
+    color: #555;
+    font-size: 0.6rem;
+    padding: 2px 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ============ СТРОКА ХАРАКТЕРИСТИКИ ============ */
+.trait-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 0.8rem;
+    min-height: 30px;
+}
+
+.trait-label {
+    color: #888;
+    flex-shrink: 0;
+    margin-right: 12px;
+}
+
+.trait-value {
+    color: #fff;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+/* Иконка замка в строке */
+.trait-lock-icon {
+    font-size: 0.9rem;
+    opacity: 0.4;
+    flex-shrink: 0;
+}
+
+   /* .trait-lock-icon.hidden {
+        color: #ffc107;
+        animation: lock-pulse 2s infinite;
+    }*/
+
+    .trait-lock-icon.visible {
+        color: #dc3545;
+    }
+
+/*@keyframes lock-pulse {
+    0%, 100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+}*/
+
+/* Убираем старые стили замков */
+.lock-icon,
+.lock-symbol {
+    display: none;
+}
+
+/* Состояния */
+.my-card {
+    border: 1px solid #0d6efd;
+    box-shadow: inset 0 0 10px rgba(13, 110, 253, 0.1);
+}
+
+.active-turn {
+    border: 1px solid #28a745;
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.2);
+}
+
+.eliminated {
+    opacity: 0.4;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+
+
+.character-card {
+    background: #121212;
+    border: 1px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: 0.3s;
+}
+
+.card-header {
+    background: #000;
+    border-bottom: 1px solid #444;
+    padding: 10px;
+}
+
+.player-name {
+    color: #ffc107;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+.trait-group {
+    border-bottom: 2px solid #000;
+}
+
+.group-title {
+    background: #1a1a1a;
+    color: #555;
+    font-size: 0.6rem;
+    padding: 2px 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.trait-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 0.8rem;
+    align-items: center;
+}
+
+.trait-label {
+    color: #888;
+}
+
+.trait-value {
+    color: #fff;
+    text-align: right;
+}
+
+.trait-row.clickable:hover {
+    background: #222;
+    cursor: pointer;
+}
+
+.lock-icon {
+    color: #ffc107;
+    opacity: 0.4;
+}
+
+.my-card {
+    border: 1px solid #0d6efd;
+    box-shadow: inset 0 0 10px rgba(13, 110, 253, 0.1);
+}
+
+.active-turn {
+    border: 1px solid #28a745;
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.2);
+}
+
+.eliminated {
+    opacity: 0.4;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+
+/* Стили для панели готовности в лобби */
+.lobby-ready-panel {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0 auto 1.5rem auto; /* auto по бокам центрирует */
+    padding: 1rem;
+    border: 2px solid #333 !important;
+    border-radius: 0.375rem;
+    background-color: #151515;
+    max-width: 600px;
+    min-height: 100px;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Панель катастрофы */
+.catastrophe-panel {
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 100%);
+    border: 2px solid #ff4500;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(255, 69, 0, 0.2), inset 0 0 20px rgba(255, 69, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+    /* Эффект тревожной пульсации */
+    .catastrophe-panel::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        animation: catastrophe-pulse 2s infinite;
+        pointer-events: none;
+    }
+
+@keyframes catastrophe-pulse {
+    0% {
+        border-color: rgba(255, 69, 0, 0.2);
+        box-shadow: inset 0 0 20px rgba(255, 69, 0, 0);
+    }
+
+    50% {
+        border-color: rgba(255, 69, 0, 0.6);
+        box-shadow: inset 0 0 30px rgba(255, 69, 0, 0.1);
+    }
+
+    100% {
+        border-color: rgba(255, 69, 0, 0.2);
+        box-shadow: inset 0 0 20px rgba(255, 69, 0, 0);
+    }
+}
+
+/* Заголовок катастрофы */
+.catastrophe-title {
+    color: #ff4500;
+    font-size: 1.4rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+}
+
+/* Иконка опасности */
+.catastrophe-icon {
+    font-size: 2rem;
+    margin-right: 10px;
+    animation: icon-shake 3s infinite;
+}
+
+@keyframes icon-shake {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+
+    10% {
+        transform: rotate(-5deg);
+    }
+
+    20% {
+        transform: rotate(5deg);
+    }
+
+    30% {
+        transform: rotate(-3deg);
+    }
+
+    40% {
+        transform: rotate(3deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+}
+
+/* Текст катастрофы */
+.catastrophe-text {
+    color: #ff8c66;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    text-shadow: 0 0 5px rgba(255, 69, 0, 0.3);
+}
+
+/* Альтернативный вариант - более мрачный */
+.catastrophe-panel-dark {
+    background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+    border: 1px solid #333;
+    border-left: 4px solid #ff4500;
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.catastrophe-panel-dark .catastrophe-title {
+    color: #ff6b35;
+    font-size: 1.2rem;
+    letter-spacing: 3px;
+}
+
+/* Вариант с иконкой молнии */
+.catastrophe-panel-lightning {
+    background: #111;
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.catastrophe-panel-lightning .lightning-icon {
+    font-size: 2.5rem;
+    filter: drop-shadow(0 0 10px #ff4500);
+}
+
+
+/* ============ ПАНЕЛЬ ЛОББИ ============ */
+.lobby-ready-panel {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0 0 1.5rem 0; /* Убрали auto - прижали влево */
+    padding: 1.2rem 1.5rem;
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 100%);
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+    max-width: 650px;
+    min-height: 80px;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.15);
+}
+
+/* Кнопка готовности */
+.lobby-ready-panel .btn-ready {
+    background: transparent;
+    border: 1px solid #ff8c66;
+    color: #ff8c66;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    min-width: 180px;
+}
+
+.lobby-ready-panel .btn-ready:hover {
+    background: rgba(255, 69, 0, 0.15);
+    border-color: #ff4500;
+    box-shadow: 0 0 10px rgba(255, 69, 0, 0.3);
+}
+
+.lobby-ready-panel .btn-ready.is-ready {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: #28a745;
+    color: #5eff7e;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
+}
+
+.lobby-ready-panel .btn-ready:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #666;
+    color: #666;
+}
+
+/* Статус готовности */
+.lobby-ready-panel .status-text {
+    color: #ffc107;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.lobby-ready-panel .status-all-ready {
+    background: rgba(40, 167, 69, 0.2);
+    border: 1px solid #28a745;
+    color: #5eff7e;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Кнопка запуска */
+.lobby-ready-panel .btn-start {
+    background: rgba(255, 69, 0, 0.15);
+    border: 1px solid #ff4500;
+    color: #ff4500;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+    margin-left: auto;
+}
+
+.lobby-ready-panel .btn-start:hover {
+    background: rgba(255, 69, 0, 0.3);
+    border-color: #ff6b35;
+    color: #ff6b35;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.4);
+}
+
+.lobby-ready-panel .btn-start:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: #555;
+    color: #555;
+    background: transparent;
+    box-shadow: none;
+}
+/* ============ СПИСОК ИГРОКОВ ============ */
+.player-list-panel {
+    background: linear-gradient(180deg, #0d0d0d 0%, #151515 100%);
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin: 0 0 1.5rem 0; /* Убрали auto - прижали влево */
+    max-width: 400px;
+    min-width: 300px;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.1);
+}
+
+.player-list-title {
+    color: #ff4500;
+    text-align: center;
+    border-bottom: 1px solid #ff4500;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(255, 69, 0, 0.3);
+}
+
+.player-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #1a0a0a 0%, #1a1a1a 100%);
+    border: 1px solid #3a1a1a;
+    border-left: 4px solid #ff4500; /* Увеличили толщину */
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: inset 2px 0 8px rgba(255, 69, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+    .player-list-item:hover {
+        border-color: #ff4500;
+        border-left-width: 5px;
+        background: linear-gradient(90deg, #2d1515 0%, #222 100%);
+        box-shadow: inset 2px 0 12px rgba(255, 69, 0, 0.2), 0 0 15px rgba(255, 69, 0, 0.2);
+        transform: translateX(2px);
+    }
+
+    .player-list-item .player-name {
+        color: #ffc107;
+        font-weight: bold;
+        text-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
+    }
+
+    .player-list-item .badge-ready {
+        background: rgba(40, 167, 69, 0.25);
+        border: 1px solid #28a745;
+        color: #5eff7e;
+        padding: 0.2rem 0.7rem;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: bold;
+        text-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
+    }
+
+    .player-list-item .badge-waiting {
+        background: rgba(255, 193, 7, 0.2);
+        border: 1px solid #ffc107;
+        color: #ffc107;
+        padding: 0.2rem 0.7rem;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: bold;
+        text-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
+    }
+    .player-list-item::before {
+        content: '';
+        position: absolute;
+        left: -4px;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: #ff4500;
+        border-radius: 2px 0 0 2px;
+        box-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+        animation: left-border-glow 2s infinite;
+    }
+
+@keyframes left-border-glow {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(255, 69, 0, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.6);
+    }
+}
+
+
+    .player-list-item:hover::before {
+        box-shadow: 0 0 20px rgba(255, 69, 0, 0.8);
+    }
+/* Стиль для карточки "Вы" в списке игроков */
+.player-list-item.is-me {
+    background: linear-gradient(90deg, #1a2e1a 0%, #1d1d1d 100%);
+    border: 1px solid #28a745 !important;
+    border-left: 5px solid #28a745 !important;
+    box-shadow: 0 0 12px rgba(40, 167, 69, 0.2), inset 0 0 15px rgba(40, 167, 69, 0.05);
+    position: relative;
+}
+
+    .player-list-item.is-me::before {
+        content: '▶';
+        position: absolute;
+        left: -18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #28a745;
+        font-size: 0.7rem;
+        animation: arrow-blink 1.5s infinite;
+    }
+
+    .player-list-item.is-me::after {
+        content: '';
+        position: absolute;
+        left: -5px;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: #28a745;
+        border-radius: 2px 0 0 2px;
+        box-shadow: 0 0 12px rgba(40, 167, 69, 0.6);
+        animation: green-glow 2s infinite;
+    }
+
+@keyframes arrow-blink {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+@keyframes green-glow {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 18px rgba(40, 167, 69, 0.8);
+    }
+}
+
+.player-list-item.is-me .player-name {
+    color: #5eff7e !important;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
+}
+
+.player-list-item.is-me:hover {
+    background: linear-gradient(90deg, #1e3a1e 0%, #252525 100%);
+    border-color: #34d058 !important;
+    box-shadow: 0 0 18px rgba(40, 167, 69, 0.3), inset 0 0 20px rgba(40, 167, 69, 0.08);
+    transform: translateX(3px);
+}
+
+/* ============ КНОПКА РЕСТАРТА ============ */
+.btn-restart {
+    display: block;
+    margin: 0 auto;
+    background: transparent;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+}
+
+    .btn-restart:hover {
+        background: rgba(220, 53, 69, 0.15);
+        border-color: #ff4444;
+        color: #ff4444;
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+        opacity: 1;
+    }
+/* ============ КОНТЕЙНЕР ИГРЫ ============ */
+.game-container {
+    min-height: 100vh;
+    padding: 1rem;
+    background: radial-gradient(ellipse at top, #1a1a1a 0%, #000000 70%), radial-gradient(ellipse at bottom, #0d0d0d 0%, #000000 70%);
+}
+
+/* Секции внутри игры */
+.game-section {
+    background: rgba(20, 20, 20, 0.8);
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+    .game-section:hover {
+        border-color: #3a3a3a;
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.05);
+    }
+
+.game-section-title {
+    color: #ffc107;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+
+/* ============ ИНДИКАТОР ВИДИМОСТИ ДЛЯ СВОИХ КАРТ ============ */
+.visibility-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.visibility-lock {
+    font-size: 0.8rem;
+    opacity: 0.5;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+}
+
+    /* Замок - скрыто от других */
+    .visibility-lock.hidden {
+        color: #ffc107;
+        filter: drop-shadow(0 0 3px rgba(255, 193, 7, 0.5));
+    }
+
+    /* Глаз - видно другим */
+    .visibility-lock.visible {
+        color: #dc3545;
+        filter: drop-shadow(0 0 3px rgba(220, 53, 69, 0.5));
+    }
+
+    /* Анимация для скрытых карт */
+    /*.visibility-lock.hidden {
+        animation: lock-pulse 2s infinite;
+    }
+
+@keyframes lock-pulse {
+    0%, 100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+}*/
+
+/* Всплывающая подсказка */
+.visibility-lock {
+    position: relative;
+    cursor: help;
+}
+
+    .visibility-lock:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background: #1a1a1a;
+        border: 1px solid #ffc107;
+        color: #ffc107;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        white-space: nowrap;
+        z-index: 1000;
+        pointer-events: none;
+    }
+.pending-indicator {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.pending-dot {
+    color: #ffc107;
+    font-size: 0.6rem;
+    animation: dot-pulse 1.5s infinite;
+    margin-left: 4px;
+}
+
+@keyframes dot-pulse {
+    0%, 100% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* ============ ИНФОРМАЦИОННАЯ ПАНЕЛЬ БУНКЕРА ============ */
+.bunker-info-panel {
+    background: linear-gradient(180deg, #0a0a0a 0%, #111111 100%);
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem auto;
+    max-width: 900px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Заголовок панели */
+.bunker-info-header {
+    text-align: center;
+    color: #ff4500;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(255, 69, 0, 0.3);
+    text-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+}
+
+/* Секция */
+.info-section {
+    margin-bottom: 1rem;
+    padding: 1rem 1.2rem;
+    background: #0d0d0d;
+    border: 1px solid #222;
+    border-radius: 8px;
+    border-left: 3px solid #ff4500;
+}
+
+    .info-section:last-child {
+        margin-bottom: 0;
+    }
+
+/* Заголовок секции */
+.info-section-title {
+    color: #ff4500;
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-section-icon {
+    font-size: 1.2rem;
+}
+
+/* Текст секции */
+.info-section-text {
+    color: #b0b0b0;
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+/* Список предметов */
+.item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px;
+}
+
+.item-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #ccc;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+    .item-entry:hover {
+        border-color: #ff4500;
+        background: #1a1a1a;
+        box-shadow: 0 0 8px rgba(255, 69, 0, 0.1);
+    }
+
+.item-count {
+    color: #ff8c66;
+    font-weight: bold;
+    margin-left: auto;
+    background: rgba(255, 69, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
+
+.item-bullet {
+    color: #ff4500;
+    font-size: 0.6rem;
+    flex-shrink: 0;
+}
+
+/* Цель */
+.goal-text {
+    color: #ffc107;
+    font-weight: bold;
+    font-size: 0.95rem;
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(255, 193, 7, 0.05);
+    border: 1px dashed rgba(255, 193, 7, 0.3);
+    border-radius: 4px;
+}
+
+.goal-highlight {
+    color: #ff4500;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(255, 69, 0, 0.5);
+}
+
+/* Кнопка скрыть */
+.info-toggle-btn {
+    display: block;
+    margin: 1rem auto 0;
+    background: transparent;
+    border: 1px solid #ff4500;
+    color: #ff4500;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+    .info-toggle-btn:hover {
+        opacity: 1;
+        background: rgba(255, 69, 0, 0.1);
+        box-shadow: 0 0 10px rgba(255, 69, 0, 0.2);
+    }
+
+
+
+/* ============ ПАНЕЛЬ ВЫБОРА ЦЕЛИ УМЕНИЯ ============ */
+.ability-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ability-panel {
+    background: linear-gradient(180deg, #1a0a0a 0%, #151515 100%);
+    border: 2px solid #ff4500;
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 0 30px rgba(255, 69, 0, 0.3);
+    animation: ability-appear 0.3s ease-out;
+}
+
+@keyframes ability-appear {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.ability-title {
+    color: #ff4500;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+}
+
+.ability-description {
+    color: #ff8c66;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 69, 0, 0.1);
+    border-radius: 4px;
+}
+
+.ability-section {
+    margin-bottom: 1rem;
+}
+
+.ability-section-title {
+    color: #888;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.4rem;
+}
+
+.ability-select {
+    width: 100%;
+    background: #111;
+    border: 1px solid #ff4500;
+    color: #ffc107;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+    .ability-select:focus {
+        outline: none;
+        border-color: #ff6b35;
+        box-shadow: 0 0 10px rgba(255, 69, 0, 0.3);
+    }
+
+    .ability-select option {
+        background: #111;
+        color: #ffc107;
+    }
+
+.ability-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.ability-btn {
+    flex: 1;
+    padding: 0.6rem;
+    border-radius: 6px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .ability-btn.confirm {
+        background: rgba(40, 167, 69, 0.2);
+        border: 1px solid #28a745;
+        color: #5eff7e;
+    }
+
+        .ability-btn.confirm:hover {
+            background: rgba(40, 167, 69, 0.4);
+            box-shadow: 0 0 15px rgba(40, 167, 69, 0.3);
+        }
+
+    .ability-btn.cancel {
+        background: rgba(220, 53, 69, 0.2);
+        border: 1px solid #dc3545;
+        color: #ff6b6b;
+    }
+
+        .ability-btn.cancel:hover {
+            background: rgba(220, 53, 69, 0.4);
+            box-shadow: 0 0 15px rgba(220, 53, 69, 0.3);
+        }
+
+/* ============ ЛОББИ ============ */
+.lobby-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+}
+
+.lobby-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+    .lobby-header h1 {
+        color: #ff4500;
+        font-size: 2.5rem;
+        text-shadow: 0 0 20px rgba(255, 69, 0, 0.5);
+        letter-spacing: 5px;
+    }
+
+.lobby-subtitle {
+    color: #888;
+    font-size: 1rem;
+}
+
+.lobby-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.lobby-btn {
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+    .lobby-btn.create {
+        background: rgba(255, 69, 0, 0.2);
+        border: 1px solid #ff4500;
+        color: #ff4500;
+    }
+
+        .lobby-btn.create:hover {
+            background: rgba(255, 69, 0, 0.4);
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.3);
+        }
+
+    .lobby-btn.join {
+        background: rgba(40, 167, 69, 0.2);
+        border: 1px solid #28a745;
+        color: #5eff7e;
+    }
+
+        .lobby-btn.join:hover {
+            background: rgba(40, 167, 69, 0.4);
+            box-shadow: 0 0 15px rgba(40, 167, 69, 0.3);
+        }
+
+    .lobby-btn.refresh {
+        background: rgba(255, 193, 7, 0.2);
+        border: 1px solid #ffc107;
+        color: #ffc107;
+    }
+
+    .lobby-btn.cancel {
+        background: rgba(108, 117, 125, 0.2);
+        border: 1px solid #6c757d;
+        color: #aaa;
+    }
+
+    .lobby-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+/* Панель создания */
+.create-room-panel {
+    background: #111;
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+    .create-room-panel h3 {
+        color: #ff4500;
+        margin-bottom: 1rem;
+    }
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+    .form-group label {
+        display: block;
+        color: #888;
+        margin-bottom: 0.3rem;
+        font-size: 0.9rem;
+    }
+
+    .form-group input {
+        width: 100%;
+        background: #0a0a0a;
+        border: 1px solid #333;
+        color: #fff;
+        padding: 0.6rem;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff4500;
+        }
+
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* Список комнат */
+.rooms-list h3 {
+    color: #ffc107;
+    margin-bottom: 1rem;
+}
+
+.no-rooms {
+    color: #666;
+    text-align: center;
+    padding: 2rem;
+}
+
+.room-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+    .room-card:hover {
+        border-color: #ff4500;
+        box-shadow: 0 0 10px rgba(255, 69, 0, 0.1);
+    }
+
+.room-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.room-id {
+    color: #ffc107;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.room-players {
+    color: #888;
+}
+
+.room-lock {
+    color: #ffc107;
+}
+
+.room-started {
+    color: #dc3545;
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    background: rgba(220, 53, 69, 0.2);
+    border-radius: 3px;
+}
+body {
+    user-select: none;
+}
+
+/* Но разрешить выделение в полях ввода и текстовых областях */
+input, textarea, [contenteditable="true"] {
+    user-select: text;
+}
+
+
+
+
+/* ============ TOOLTIP ДЛЯ ХАРАКТЕРИСТИК ============ */
+/* ============ БЕЗОПАСНЫЙ ТУЛТИП ============ */
+.trait-tooltip {
+    position: relative;
+    display: block;
+    cursor: help;
+}
+
+/* Базовое окно тултипа */
+.tooltip-popup {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    z-index: 9999;
+    width: 260px;
+    background: #1a1a1a;
+    border: 1px solid #ff4500;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+    /* Тултип сверху (для нижних карт) */
+    .tooltip-popup.top {
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-bottom: 10px;
+    }
+
+        .tooltip-popup.top::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: #ff4500 transparent transparent transparent;
+        }
+
+    /* Тултип снизу (для верхних карт) */
+    .tooltip-popup.bottom {
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 10px;
+    }
+
+        .tooltip-popup.bottom::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent #ff4500 transparent;
+        }
+
+/* Заголовок */
+.tooltip-title {
+    background: #0d0d0d;
+    color: #ff4500;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #ff4500;
+    border-radius: 8px 8px 0 0;
+}
+
+/* Описание */
+.tooltip-desc {
+    color: #ccc;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 8px 12px;
+    border-bottom: 1px solid #333;
+}
+
+/* Пример */
+.tooltip-example {
+    color: #888;
+    font-size: 10px;
+    font-style: italic;
+    padding: 6px 12px;
+}
+
+/* Показываем при наведении */
+.trait-tooltip:hover .tooltip-popup {
+    visibility: visible;
+    opacity: 1;
+}

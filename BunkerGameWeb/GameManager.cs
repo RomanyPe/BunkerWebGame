@@ -114,6 +114,25 @@ namespace BunkerGameWeb
                 UpdateAll();
             }
         }
+
+        private static int[] GetUniqueIndices(int count, int maxValue)
+        {
+            if (count > maxValue) count = maxValue; // Если игроков больше, чем вариантов
+
+            // Берём все возможные индексы и перемешиваем
+            var indices = Enumerable.Range(0, maxValue).ToArray();
+            Random rng = new();
+
+            for (int i = indices.Length - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (indices[i], indices[j]) = (indices[j], indices[i]);
+            }
+
+            // Возвращаем только нужное количество
+            return [.. indices.Take(count)];
+        }
+
         // Теперь метод принимает объект Player напрямую
         public void AssignRandomStats(Player player)
         {
@@ -121,12 +140,6 @@ namespace BunkerGameWeb
 
             int index = Random.Shared.Next(ConfigCharacterName.Text.Length);
             player.Name = ConfigCharacterName.Text[index];
-
-            index = Random.Shared.Next(ConfigCharacterBiologicalSex.Text.Length);
-            player.BiologicalSex = ConfigCharacterBiologicalSex.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(100);
-            player.Age = ConfigCharacterAge.GetConfig(index);
 
             index = Random.Shared.Next(ConfigCharacterProfession.Text.Length);
             player.Profession = ConfigCharacterProfession.GetConfig(index, rnd);
@@ -152,9 +165,6 @@ namespace BunkerGameWeb
             index = Random.Shared.Next(ConfigCharacterAdditionalInformation.Text.Length);
             player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(index);
 
-            index = Random.Shared.Next(ConfigCharacterSpecialCondition.Text.Length);
-            player.SpecialCondition = ConfigCharacterSpecialCondition.GetConfig(index, rnd);
-
             index = Random.Shared.Next(ConfigCharacterBaggage.Text.Length);
             player.Baggage = ConfigCharacterBaggage.GetConfig(index, rnd);
 
@@ -176,12 +186,88 @@ namespace BunkerGameWeb
             index = Random.Shared.Next(ConfigCharacterRelation.Text.Length);
             player.Relation = ConfigCharacterRelation.GetConfig(index);
         }
+        public void GenerateAllCharacters()
+        {
+            int playerCount = ArrayPlayers.Count;
+            Random rnd = new();
 
+            // Генерируем уникальные индексы для каждой характеристики
+            var nameIndices = GetUniqueIndices(playerCount, ConfigCharacterName.Text.Length);
+
+            var professionIndices = GetUniqueIndices(playerCount, ConfigCharacterProfession.Text.Length);
+
+            var bodyBuildIndices = GetUniqueIndices(playerCount, ConfigCharacterBodyBuild.Text.Length);
+            var hobbyIndices = GetUniqueIndices(playerCount, ConfigCharacterHobby.Text.Length);
+            var phobiaIndices = GetUniqueIndices(playerCount, ConfigCharacterPhobia.Text.Length);
+            var inventoryIndices = GetUniqueIndices(playerCount, ConfigCharacterInventory.Text.Length);
+            var traitIndices = GetUniqueIndices(playerCount, ConfigCharacterTrait.Text.Length);
+            var additionalInfoIndices = GetUniqueIndices(playerCount, ConfigCharacterAdditionalInformation.Text.Length);
+
+            var baggageIndices = GetUniqueIndices(playerCount, ConfigCharacterBaggage.Text.Length);
+            var knowledgeIndices = GetUniqueIndices(playerCount, ConfigCharacterKnowledge.Text.Length);
+            var secretIndices = GetUniqueIndices(playerCount, ConfigCharacterSecret.Text.Length);
+            var reproductionIndices = GetUniqueIndices(playerCount, ConfigCharacterReproduction.Text.Length);
+            var visionIndices = GetUniqueIndices(playerCount, ConfigCharacterVision.Text.Length);
+            var equipmentIndices = GetUniqueIndices(playerCount, ConfigCharacterEquipment.Text.Length);
+            var relationIndices = GetUniqueIndices(playerCount, ConfigCharacterRelation.Text.Length);
+
+            // Присваиваем каждому игроку уникальные индексы
+            for (int i = 0; i < playerCount; i++)
+            {
+                var player = ArrayPlayers[i];
+
+                player.Name = ConfigCharacterName.Text[nameIndices[i]];
+                player.Profession = ConfigCharacterProfession.GetConfig(professionIndices[i], rnd);
+                player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(bodyBuildIndices[i]);
+                player.Hobby = ConfigCharacterHobby.GetConfig(hobbyIndices[i], rnd);
+                player.Phobia = ConfigCharacterPhobia.GetConfig(phobiaIndices[i]);
+                player.Inventory = ConfigCharacterInventory.GetConfig(inventoryIndices[i]);
+                player.Trait = ConfigCharacterTrait.GetConfig(traitIndices[i]);
+                player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(additionalInfoIndices[i]);
+                player.Baggage = ConfigCharacterBaggage.GetConfig(baggageIndices[i], rnd);
+                player.Knowledge = ConfigCharacterKnowledge.GetConfig(knowledgeIndices[i], rnd);
+                player.Secret = ConfigCharacterSecret.GetConfig(secretIndices[i]);
+                player.Reproduction = ConfigCharacterReproduction.GetConfig(reproductionIndices[i], rnd);
+                player.Vision = ConfigCharacterVision.GetConfig(visionIndices[i]);
+                player.Equipment = ConfigCharacterEquipment.GetConfig(equipmentIndices[i]);
+                player.Relation = ConfigCharacterRelation.GetConfig(relationIndices[i]);
+
+                // Возраст генерируется отдельно (не нуждается в уникальности)
+                int indexAge = Random.Shared.Next(100);
+                player.Age = ConfigCharacterAge.GetConfig(indexAge);
+
+                int indexBiologicalSex = Random.Shared.Next(ConfigCharacterBiologicalSex.Text.Length);
+                player.BiologicalSex = ConfigCharacterBiologicalSex.GetConfig(indexBiologicalSex, rnd);
+
+                int indexHealth = Random.Shared.Next(ConfigCharacterHealth.Text.Length);
+                player.Health = ConfigCharacterHealth.GetConfig(indexHealth, rnd);
+
+                int indexSpecialCondition = Random.Shared.Next(ConfigCharacterSpecialCondition.Text.Length);
+                player.SpecialCondition = ConfigCharacterSpecialCondition.GetConfig(indexSpecialCondition, rnd);
+
+                player.IsConnected = true;
+                player.LastSeenUtc = DateTime.UtcNow;
+
+                // Игровой статус
+                player.IsReady = false;
+                player.IsEliminated = false;
+                player.IsWinner = false;
+                player.IsSelectionConfirmed = false;
+
+                // Открытие карт
+                player.CountNeedOpen = 0;
+                player.CurrentOpenedCard = 0;
+                player.PendingOpenedTypes = [];
+                player.ListOpenedTypes = [];
+            }
+
+            Console.WriteLine("[STATS] Уникальные характеристики назначены всем игрокам");
+        }
         public int AddAndInitializePlayer(string sessionKey = "")
         {
             if (IsGameStarted) return -1;
 
-            // ✅ ПРОВЕРКА: Есть ли уже игрок с таким SessionKey?
+            // ПРОВЕРКА: Есть ли уже игрок с таким SessionKey?
             if (!string.IsNullOrEmpty(sessionKey))
             {
                 var existingPlayer = ArrayPlayers.FirstOrDefault(p => p.SessionKey == sessionKey);
@@ -203,12 +289,11 @@ namespace BunkerGameWeb
             {
                 Id = newId,
                 SessionKey = sessionKey,
-                Name = $"Выживший #{newId}",
+                Name = $"Выживший #{newId + 1}",
                 IsConnected = true,
                 LastSeenUtc = DateTime.UtcNow
             };
 
-            AssignRandomStats(newPlayer);
             ArrayPlayers.Add(newPlayer);
             UpdateAll();
 
@@ -283,11 +368,15 @@ namespace BunkerGameWeb
 
             if (AreAllReady && ArrayPlayers.Count >= 2)
             {
+                GenerateAllCharacters();
+
+                ShufflePlayers();
+
                 BunkerStats = GetTextForBunker();
                 IsGameStarted = true;
                 GameRounds = 1;
                 CurrentPlayerIndex = 0;
-                PlayersWhoMovedThisRound.Clear(); // ✅ Очищаем список ходивших
+                PlayersWhoMovedThisRound.Clear(); // Очищаем список ходивших
 
                 CheckWinCondition();
 
@@ -310,8 +399,6 @@ namespace BunkerGameWeb
         }
 
         // Метод для завершения хода
-        // Метод NextTurn остается, но вызывается ПОСЛЕ подтверждения
-
         public void NextTurn()
         {
             if (!IsGameStarted) return;
@@ -338,7 +425,6 @@ namespace BunkerGameWeb
             // Считаем сколько живых игроков
             int aliveCount = ArrayPlayers.Count(p => !p.IsEliminated);
 
-            // Если все живые походили - конец раунда
             // Если все живые походили - конец раунда
             if (PlayersWhoMovedThisRound.Count >= aliveCount)
             {
@@ -378,12 +464,8 @@ namespace BunkerGameWeb
             // Подготовка следующего игрока
             if (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < ArrayPlayers.Count)
             {
-                var nextPlayer = ArrayPlayers[CurrentPlayerIndex];
-                nextPlayer.CurrentOpenedCard = 0;
-                nextPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
-                nextPlayer.PendingOpenedTypes.Clear();
-                nextPlayer.IsSelectionConfirmed = false;
-                Console.WriteLine($"[NEXT] Ход -> {nextPlayer.Name} (Раунд {GameRounds})");
+                PreparePlayerForTurn(ArrayPlayers[CurrentPlayerIndex]);
+                Console.WriteLine($"[NEXT] Ход -> {ArrayPlayers[CurrentPlayerIndex].Name} (Раунд {GameRounds})");
             }
 
             UpdateAll();
@@ -391,12 +473,12 @@ namespace BunkerGameWeb
         public bool IsVotingRound()
         {
             // 1. Первое голосование на 3 раунде
-            if (GameRounds == 4) return true;
-
-            // 2. После 3 раунда голосование каждые 2 раунда (5, 7, 9...)
-            if (GameRounds > 4 && (GameRounds - 4) % 3 == 0) return true;
-
-            return false;
+            return GameRounds switch
+            {
+                4 => true,
+                > 4 when (GameRounds - 4) % 3 == 0 => true,
+                _ => false
+            };
         }
 
         public void StartVoting()
@@ -478,14 +560,14 @@ namespace BunkerGameWeb
                 IsVotingActive = false;
                 Votes.Clear();
 
-                // ✅ Находим первого живого игрока
+                // Находим первого живого игрока
                 CurrentPlayerIndex = ArrayPlayers.FindIndex(p => !p.IsEliminated);
                 if (CurrentPlayerIndex == -1) CurrentPlayerIndex = 0;
 
-                // ✅ КРИТИЧЕСКИ ВАЖНО: Сбрасываем состояние ходов для НОВОГО раунда
+                // КРИТИЧЕСКИ ВАЖНО: Сбрасываем состояние ходов для НОВОГО раунда
                 PlayersWhoMovedThisRound.Clear();
 
-                // ✅ Сбрасываем состояние выбора карт для ВСЕХ живых игроков
+                // Сбрасываем состояние выбора карт для ВСЕХ живых игроков
                 foreach (var player in ArrayPlayers.Where(p => !p.IsEliminated))
                 {
                     player.CurrentOpenedCard = 0;
@@ -494,15 +576,9 @@ namespace BunkerGameWeb
                     player.CountNeedOpen = GameRounds == 1 ? 2 : 1;
                 }
 
-                // ✅ Подготавливаем текущего игрока
-                var currentPlayer = ArrayPlayers[CurrentPlayerIndex];
-                currentPlayer.CountNeedOpen = GameRounds == 1 ? 2 : 1;
-                currentPlayer.CurrentOpenedCard = 0;
-                currentPlayer.PendingOpenedTypes.Clear();
-                currentPlayer.IsSelectionConfirmed = false;
-
-                Console.WriteLine($"[VOTE] Новый раунд {GameRounds}. Ходит {currentPlayer.Name}");
-
+                // Подготавливаем текущего игрока
+                PreparePlayerForTurn(ArrayPlayers[CurrentPlayerIndex]);
+                IsVotingActive = false;
                 UpdateAll();
             }
             catch (Exception ex)
@@ -513,6 +589,43 @@ namespace BunkerGameWeb
                 UpdateAll();
             }
         }
+
+        public void ShufflePlayers()
+        {
+            Random rng = new();
+            int n = ArrayPlayers.Count;
+
+            // Алгоритм Фишера-Йетса (Fisher-Yates shuffle)
+            while (n > 1)
+            {
+                n--;
+                int k = rng.Next(n + 1);
+                (ArrayPlayers[k], ArrayPlayers[n]) = (ArrayPlayers[n], ArrayPlayers[k]);
+            }
+
+            // После перемешивания нужно сбросить индексы
+            CurrentPlayerIndex = 0;
+            PlayersWhoMovedThisRound.Clear();
+
+            Console.WriteLine("[SHUFFLE] Порядок ходов:");
+            for (int i = 0; i < ArrayPlayers.Count; i++)
+            {
+                Console.WriteLine($"  {i + 1}. {ArrayPlayers[i].Name} (ID: {ArrayPlayers[i].Id})");
+            }
+        }
+
+
+        private void PreparePlayerForTurn(Player player)
+        {
+            player.CurrentOpenedCard = 0;
+            player.CountNeedOpen = GameRounds == 1 ? 2 : 1;
+            player.PendingOpenedTypes.Clear();
+            player.IsSelectionConfirmed = false;
+
+            Console.WriteLine($"[PREPARE] Игрок {player.Name} готов к ходу (Раунд {GameRounds}, нужно открыть {player.CountNeedOpen} карт)");
+        }
+
+
         public void FullRestart(bool againPlay = false)
         {
 
@@ -526,28 +639,7 @@ namespace BunkerGameWeb
             }
             else
             {
-                // 3. Сбрасываем всех игроков (делаем их живыми и неготовыми)
-                foreach (var player in ArrayPlayers)
-                {
-                    // Идентификация
-                    player.IsConnected = true;
-                    player.LastSeenUtc = DateTime.UtcNow;
-
-                    // Игровой статус
-                    player.IsReady = false;
-                    player.IsEliminated = false;
-                    player.IsWinner = false;
-                    player.IsSelectionConfirmed = false;
-
-                    // Характеристики (все сбрасываются на новые случайные значения при создании)
-                    AssignRandomStats(player);
-                    // Открытие карт
-                    player.CountNeedOpen = 0;
-                    player.CurrentOpenedCard = 0;
-                    player.PendingOpenedTypes = [];
-                    player.ListOpenedTypes = [];
-
-                }
+                GenerateAllCharacters();
             }
 
             // 2. Сбрасываем системные переменные

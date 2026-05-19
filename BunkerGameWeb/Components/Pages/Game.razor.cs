@@ -270,8 +270,8 @@ public partial class Game : IDisposable
     private void ConfirmSelection()
     {
         if (CurrentPlayer == null || GameManager == null) return;
-        GameManager.ConfirmSelection(MyId);
-        PassTurn();
+        if (GameManager.ConfirmSelection(MyId))
+            PassTurn();
     }
 
     private void PassTurn()

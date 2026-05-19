@@ -147,7 +147,7 @@ else
                         <span class="status-text">Ожидание: @GameManager.ArrayPlayers.Count(p => p.IsReady) / @GameManager.ArrayPlayers.Count</span>
                     }
 
-                    @if (GameManager.ArrayPlayers.Count > 0 && MyId == GameManager.ArrayPlayers[0].Id)
+                    @if (GameManager.ArrayPlayers.Count > 0 && MyId == 0)
                     {
                         <button class="btn-start"
                         disabled="@(!GameManager.AreAllReady || GameManager._isStarting)"
@@ -171,8 +171,8 @@ else
                     }
                 </div>
             }
-            @* Кнопка рестарта - только у первого игрока *@
-            @if (GameManager.ArrayPlayers.Count > 0 && MyId == GameManager.ArrayPlayers[0].Id)
+            @* Кнопка рестарта - только у АДМИНА *@
+            @if (GameManager.ArrayPlayers.Count > 0 && MyId == 0)
             {
                 <button class="btn-restart" @onclick="HandleRestart">
                     Полный рестарт
@@ -222,7 +222,7 @@ else
                         }
                     </div>
                     @* Панель выбора цели для умения *@
-                    @if (showAbilityTargetSelection)
+                    @if (showAbilityTargetSelection && !GameManager.IsVotingActive)
                     {
                         <div class="ability-overlay">
                             <div class="ability-panel">
@@ -264,7 +264,7 @@ else
                     }
 
                     @* Панель умения *@                    
-                    @if (GameManager != null && GameManager.IsGameStarted && CurrentPlayer != null && !CurrentPlayer.SpecialCondition.IsUsed && MyId == GameManager.CurrentTurnPlayerId && GameManager.GameRounds > 2)
+                    @if (GameManager != null && GameManager.IsGameStarted && CurrentPlayer != null && !CurrentPlayer.SpecialCondition.IsUsed && MyId == GameManager.CurrentTurnPlayerId && GameManager.GameRounds > 2 && !GameManager.IsVotingActive)
                     {
                         <div class="p-3 border rounded mb-3" style="background-color: #1a1515; border-color: #8b0000;">
                             <div class="d-flex justify-content-between align-items-center">
@@ -285,7 +285,7 @@ else
                     }
 
                     @* Инфо-панель хода *@
-                    @if (GameManager != null && GameManager.IsGameStarted && MyId == GameManager.CurrentTurnPlayerId)
+                    @if (GameManager != null && GameManager.IsGameStarted && MyId == GameManager.CurrentTurnPlayerId && !GameManager.IsVotingActive)
                     {
                         <div class="p-3 border rounded shadow-sm" style="background-color: #1a2e1a; border-color: #2d5a2d; color: #d4edda;">
                             <div class="d-flex justify-content-between align-items-center">
@@ -319,7 +319,7 @@ else
                             </div>
                         </div>
                     }
-                    else
+                    else if (GameManager != null && !GameManager.IsVotingActive)
                     {
                         <div class="p-3 border rounded shadow-sm" style="background-color: #2b2111; border-color: #554121; color: #ffeeba;">
                             <h4 class="mb-1" style="color: #ffc107;">

@@ -1,0 +1,11 @@
+﻿dotnet publish -c Release --self-contained true -r win-x64 -o ./BunkerGameApp
+
+git add .
+
+git commit -m "исправил основные баги с перезаходом, 
+			теперь при перезагрузке сайта игрок не вылетает из комнаты, 
+			добавил всплывающее окно для описания полей харакетристик"
+
+git push
+
+dotnet run BunkerGameWeb.dll
