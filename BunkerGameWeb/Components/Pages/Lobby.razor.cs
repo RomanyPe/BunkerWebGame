@@ -45,7 +45,7 @@ namespace BunkerGameWeb.Components.Pages
                 await SessionStorage.SetAsync("SessionKey", sessionKey);
             }
 
-            string roomId = RoomManager.CreateRoom(sessionKey, "Комната");
+            string roomId = RoomManager.CreateRoom(sessionKey);
             await SessionStorage.SetAsync("RoomId", roomId);
             Navigation.NavigateTo($"/game/{roomId}");
         }

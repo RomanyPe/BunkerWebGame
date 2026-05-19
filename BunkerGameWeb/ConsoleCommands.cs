@@ -1,4 +1,7 @@
-﻿using System.Reflection;
+﻿using System.Net;
+using System.Net.Sockets;
+using System.Reflection;
+using static System.Net.WebRequestMethods;
 
 namespace BunkerGameWeb;
 
@@ -7,10 +10,11 @@ public class ConsoleCommands
     private readonly RoomManager _roomManager;
     private readonly Timer _timer;
     private bool _isRunning = true;
-
-    public ConsoleCommands(RoomManager roomManager)
+    public int httpPort;
+    public ConsoleCommands(RoomManager roomManager, int _hhtp)
     {
         _roomManager = roomManager;
+        httpPort = _hhtp;
         _timer = new Timer(_ => CheckInput(), null, 100, 100);
     }
 
@@ -114,6 +118,9 @@ public class ConsoleCommands
                     Console.WriteLine("Пример: transfer ABC123 Саня Штрих");
                 }
                 break;
+            case "guide":
+                SnowGuide();
+                break;
             default:
                 Console.WriteLine($"Неизвестная команда: {cmd}. Введите 'help' для списка команд");
                 break;
@@ -155,7 +162,7 @@ public class ConsoleCommands
     private void CreateDebugRoom()
     {
         var sessionKey = Guid.NewGuid().ToString();
-        string roomId = _roomManager.CreateRoom(sessionKey, "ТЕСТ");
+        string roomId = _roomManager.CreateRoom(sessionKey);
 
         var game = _roomManager.GetGame(roomId);
         if (game != null)
@@ -190,6 +197,82 @@ public class ConsoleCommands
         Console.WriteLine("help / ?                                                 - показать эту справку");
         Console.WriteLine("exit / quit                                              - выйти\n");
     }
+
+    private void SnowGuide()
+    {
+        Console.WriteLine(@"
+============================================================
+            LOCAL BUNKER WEB GAME SERVER GUIDE
+============================================================
+
+Если вы запускаете проект в первый раз то это как раз для вас,
+на данный момент сервер не работает публично а в области локальной сети 
+то есть в области 1 роутера или любого друго маршрутизатора, при возникновение проблемы с серверо
+
+СРАЗУ ОТВЕЧАЮ НА ГЛАВНЫЕ ВОПРОСЫ И ЖАЛОБЫ:
+    1. Почему у меня пропала комната?
+        На сервере стоит работает быстрая система которая 
+        следит за комнатами и если комната живет час, 
+        но в нее никто не играет она удаляеться автоматически
+    2.Какие его требования к системе?
+        Я честно пытался сделать все очень оптимизирована даже там где это уже выглдит бесполезно,
+        но как факт сервер почти не исползует процессор 
+        только ОЗУ и если игроков будет реально много может занимать от 300 до 600 МБ
+    3.Как поменять тему игры?
+        В папке проекта будет лежать папка Themes,
+        внутри нее файлы расширения .bunk это по сути файлы .txt, 
+        но так как я эксперементирую с проектом и своими возможностями
+        создал данный формат файла, если его открыт то там будет 
+        [*название характеристики*] и с каждой новой строки
+        будет сама характеристика, вам позволено как создать новую характеристику 
+        (систему полностью позволяет вам создавать любую длину для каждой характеристики).
+        Главное чтобы каждая новая характеристика была с новой строки
+    4.Как приглосить друга в игру?
+        Есть 2 ответа которые зависят от условий, если твой друг не подключен к общему интернету 
+        (компьютер где стоит данный сервер считается хостом) 
+        к которому подключен хост то либо вы подключаетесь к общему интернету,
+        либо не играете так как у нас находится сервер, но у него нет выхода в интернет.
+        А если у вас есть возможность создать туннель или использовать системы 
+        которые обьединяют ваши интернет соединения в одну (например Radmin) 
+        то вам нужно будет скопироть ip друга который виден в сервисе а потом ввести порт:
+        http://xxxxxxxxxx:5000
+    5.Как получить ссылку на игру?
+        Способ 1:
+            введите комбинацию Win + R введите cmd ,
+            внтури комнадной строки введите ipconfig, 
+            чаще всего IPv4 по типу 192.168.0.1 (это только пример если он совпал это случайность)
+            ссылка будет выглядить вот так: http://192.168.0.1:5000
+        Способ 2:
+            Ниже буду ваши готовые ip адреса которые вы можете скопировать 
+
+------------------------------------------------------------
+
+============================================================
+");
+        // Локальный доступ
+        Console.WriteLine($"Локальный доступ:   http://localhost:{httpPort}");
+
+        // Сетевые адреса
+        var hostName = Dns.GetHostName();
+        var ipAddresses = Dns.GetHostEntry(hostName)
+            .AddressList
+            .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork)
+            .ToList();
+
+        if (ipAddresses.Count != 0)
+        {
+            Console.WriteLine("\nДля подключения с других устройств:");
+            foreach (var ip in ipAddresses)
+            {
+                Console.WriteLine($"   http://{ip}:{httpPort}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("\nСетевые адреса не найдены. Проверьте подключение к сети.");
+        }
+    }
+
 
     private void ShowRooms()
     {

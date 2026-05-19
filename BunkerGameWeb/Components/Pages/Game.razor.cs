@@ -24,7 +24,9 @@ public partial class Game : IDisposable
     {
         if (firstRender)
         {
+#if DEBUG
             DebugState();
+#endif
             if (string.IsNullOrEmpty(RoomId))
             {
                 Navigation.NavigateTo("/lobby");
@@ -92,7 +94,9 @@ public partial class Game : IDisposable
         // Если игра идёт - только восстановление существующего игрока
         if (GameManager.IsGameStarted)
         {
+#if DEBUG
             DebugState();
+#endif
             // 1. Ищем по SessionKey
             var existingBySession = GameManager.ArrayPlayers.FirstOrDefault(p => p.SessionKey == _sessionKey);
 
@@ -196,11 +200,11 @@ public partial class Game : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public async Task HandleStartClick()
+    public void HandleStartClick()
     {
         if (GameManager == null) return;
         if (GameManager._isStarting || GameManager.IsGameStarted) return;
-        await GameManager.StartGameAsync();
+        GameManager.StartGameAsync();
         Console.WriteLine("Запустилось");
     }
 
@@ -529,5 +533,78 @@ public partial class Game : IDisposable
         StateHasChanged();
 
         Console.WriteLine("[GAME] Игра перезапущена в комнате");
+    }
+
+   
+    private static string GetTooltipPosition(PlayerFieldType fieldType)
+    {
+        // Для верхних характеристик (профессия, возраст) - показываем снизу
+        var topFields = new[] {
+            PlayerFieldType.BiologicalSex,
+            PlayerFieldType.Age,
+            PlayerFieldType.BodyBuild,
+            PlayerFieldType.Reproduction
+        };
+
+        return topFields.Contains(fieldType) ? "bottom" : "top";
+    }
+
+    private RenderFragment RenderTraitWithTooltip(PlayerFieldType fieldType, string label, bool isOpened, int playerId, string value) => __builder =>
+    {
+        var title = GetFieldDisplayName(fieldType);
+        var description = GetFieldDescription(fieldType);
+        var example = GetFieldExample(fieldType);
+        var position = GetTooltipPosition(fieldType);
+
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "class", "trait-tooltip");
+
+        // Характеристика
+        __builder.AddContent(2, renderTrait(fieldType, label, isOpened, playerId, value));
+
+        // Тултип
+        __builder.OpenElement(3, "div");
+        __builder.AddAttribute(4, "class", $"tooltip-popup {position}");
+
+        __builder.OpenElement(5, "div");
+        __builder.AddAttribute(6, "class", "tooltip-title");
+        __builder.AddContent(7, $"📖 {title}");
+        __builder.CloseElement();
+
+        __builder.OpenElement(8, "div");
+        __builder.AddAttribute(9, "class", "tooltip-desc");
+        __builder.AddContent(10, description);
+        __builder.CloseElement();
+
+        __builder.OpenElement(11, "div");
+        __builder.AddAttribute(12, "class", "tooltip-example");
+        __builder.AddContent(13, $"💡 {example}");
+        __builder.CloseElement();
+
+        __builder.CloseElement(); // tooltip-popup
+        __builder.CloseElement(); // trait-tooltip
+    };
+
+    private void DebugState()
+    {
+        Console.WriteLine($"[DEBUG] MyId = {MyId}");
+        Console.WriteLine($"[DEBUG] RoomId = {RoomId}");
+        Console.WriteLine($"[DEBUG] GameManager null? {GameManager == null}");
+
+        if (GameManager != null)
+        {
+            Console.WriteLine($"[DEBUG] ArrayPlayers.Count = {GameManager.ArrayPlayers.Count}");
+            foreach (var p in GameManager.ArrayPlayers)
+            {
+                Console.WriteLine($"[DEBUG]   Player: Id={p.Id}, Name={p.Name}, SessionKey={p.SessionKey}");
+            }
+        }
+
+        var playersInRoom = RoomManager.GetPlayersWithSessions(RoomId);
+        Console.WriteLine($"[DEBUG] Players in RoomManager: {playersInRoom.Count}");
+        foreach (var (pid, skey) in playersInRoom)
+        {
+            Console.WriteLine($"[DEBUG]   RoomPlayer: Id={pid}, SessionKey={skey}");
+        }
     }
 }

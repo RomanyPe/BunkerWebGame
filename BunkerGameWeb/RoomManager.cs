@@ -35,7 +35,7 @@ namespace BunkerGameWeb
         }
 
         // Создать новую комнату
-        public string CreateRoom(string sessionKey, string roomName, string password = "")
+        public string CreateRoom(string sessionKey, string password = "")
         {
             if (_rooms.Count >= MaxRooms)
             {
@@ -175,10 +175,15 @@ namespace BunkerGameWeb
         // Удалить комнату
         public void RemoveRoom(string roomId)
         {
+
+            if (_rooms.TryRemove(roomId, out var GM))
+                ThemeManager.UnregisterTheme(GM.CurrentTheme);
+            
             _rooms.TryRemove(roomId, out _);
             _roomPlayers.TryRemove(roomId, out _);
             _roomPasswords.TryRemove(roomId, out _);
             _lastActivity.TryRemove(roomId, out _);
+            
             Console.WriteLine($"[ROOM] Комната {roomId} полностью удалена");
         }
 

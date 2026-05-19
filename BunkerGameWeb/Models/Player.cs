@@ -31,7 +31,7 @@
         public bool IsEliminated { get; set; } = false;
         public HashSet<PlayerFieldType> ListOpenedTypes = [];
 
-        // ✅ Временный выбор (виден только игроку)
+        // Временный выбор (виден только игроку)
         public HashSet<PlayerFieldType> PendingOpenedTypes = [];
         public bool IsSelectionConfirmed { get; set; } = false;
         public string SessionKey { get; set; } = string.Empty;
@@ -42,10 +42,9 @@
         // Метод для применения выбора
         public void ApplyPendingSelections()
         {
-            foreach (var type in PendingOpenedTypes)
-            {
-                ListOpenedTypes.Add(type);
-            }
+            // Метод UnionWith добавляет все элементы из другой коллекции без лишнего мусора
+            ListOpenedTypes.UnionWith(PendingOpenedTypes);
+
             PendingOpenedTypes.Clear();
         }
 

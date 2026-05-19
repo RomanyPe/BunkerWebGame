@@ -1,6 +1,7 @@
 using BunkerGameWeb.Components.Pages;
 using BunkerGameWeb.Helpers;
 using BunkerGameWeb.Models;
+using System.Buffers;
 using System.Reflection.PortableExecutable;
 using System.Runtime.Intrinsics.Arm;
 
@@ -19,6 +20,7 @@ namespace BunkerGameWeb
         // Индекс игрока, который ходит сейчас (в списке PlayerIds)
         public int CurrentPlayerIndex { get; private set; } = 0;
 
+        public string CurrentTheme { get; set; } = "FirstTheme";
         // Свойство, возвращающее ID текущего ходящего
         public int CurrentTurnPlayerId
         {
@@ -69,21 +71,23 @@ namespace BunkerGameWeb
         public ConfigCharacterReproduction ConfigCharacterReproduction = new();
         public ConfigCharacterVision ConfigCharacterVision = new();
 
-        public ConfigCharacterEquipment ConfigCharacterEquipment = new(); // Если создал класс для одежды
-        public ConfigCharacterRelation ConfigCharacterRelation = new(); // Есл
+        public ConfigCharacterEquipment ConfigCharacterEquipment = new(); 
+        public ConfigCharacterRelation ConfigCharacterRelation = new(); 
 
         public CatastropheName CatastropheName = new();
 
         public event Action? OnNotify; // Событие для SignalR
 
         public void UpdateAll() => OnNotify?.Invoke();
+        public List<string> AvailableThemes;
         // GameManager.cs
         private Timer? _cleanupTimer;
 
         public GameManager()
         {
             // Запускаем таймер каждые 30 секунд
-            _cleanupTimer = new Timer(_ => RemoveDisconnectedPlayers(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            AvailableThemes = ThemeManager.GetAvailableThemes();
+            _cleanupTimer = new Timer(_ => RemoveDisconnectedPlayers(), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
         }
 
         private void RemoveDisconnectedPlayers()
@@ -94,7 +98,7 @@ namespace BunkerGameWeb
                 return;
             }
 
-            var timeout = TimeSpan.FromSeconds(45); // даём 45 секунд на переподключение
+            var timeout = TimeSpan.FromMinutes(1); // даём 45 секунд на переподключение
             var now = DateTime.UtcNow;
             var toRemove = ArrayPlayers
                 .Where(p => !p.IsConnected && now - p.LastSeenUtc > timeout && !p.IsEliminated)
@@ -115,154 +119,170 @@ namespace BunkerGameWeb
             }
         }
 
-        private static int[] GetUniqueIndices(int count, int maxValue)
+        private static void FillUniqueIndices(Span<int> destination, int maxValue)
         {
-            if (count > maxValue) count = maxValue; // Если игроков больше, чем вариантов
+            int count = destination.Length;
+            if (count > maxValue) count = maxValue;
 
-            // Берём все возможные индексы и перемешиваем
-            var indices = Enumerable.Range(0, maxValue).ToArray();
-            Random rng = new();
+            // Берем временный массив из пула для перемешивания
+            int[] tempIndices = ArrayPool<int>.Shared.Rent(maxValue);
 
-            for (int i = indices.Length - 1; i > 0; i--)
+            try
             {
-                int j = rng.Next(i + 1);
-                (indices[i], indices[j]) = (indices[j], indices[i]);
+                // Заполняем временный массив индексами от 0 до maxValue
+                for (int i = 0; i < maxValue; i++)
+                {
+                    tempIndices[i] = i;
+                }
+
+                // Перемешиваем только нужную нам часть (Фишер-Йетс)
+                // Использование Random.Shared избавляет от new Random()
+                for (int i = 0; i < count; i++)
+                {
+                    int j = Random.Shared.Next(i, maxValue);
+                    (tempIndices[i], tempIndices[j]) = (tempIndices[j], tempIndices[i]);
+                }
+
+                // Копируем перемешанные индексы в наш destination Span
+                // tempIndices как Span позволяет использовать быстрый метод CopyTo
+                tempIndices.AsSpan(0, count).CopyTo(destination);
             }
-
-            // Возвращаем только нужное количество
-            return [.. indices.Take(count)];
+            finally
+            {
+                // Обязательно возвращаем массив в пул
+                ArrayPool<int>.Shared.Return(tempIndices);
+            }
         }
-
-        // Теперь метод принимает объект Player напрямую
-        public void AssignRandomStats(Player player)
-        {
-            Random rnd = new();
-
-            int index = Random.Shared.Next(ConfigCharacterName.Text.Length);
-            player.Name = ConfigCharacterName.Text[index];
-
-            index = Random.Shared.Next(ConfigCharacterProfession.Text.Length);
-            player.Profession = ConfigCharacterProfession.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(ConfigCharacterHealth.Text.Length);
-            player.Health = ConfigCharacterHealth.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(ConfigCharacterBodyBuild.Text.Length);
-            player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterHobby.Text.Length);
-            player.Hobby = ConfigCharacterHobby.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(ConfigCharacterPhobia.Text.Length);
-            player.Phobia = ConfigCharacterPhobia.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterInventory.Text.Length);
-            player.Inventory = ConfigCharacterInventory.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterTrait.Text.Length);
-            player.Trait = ConfigCharacterTrait.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterAdditionalInformation.Text.Length);
-            player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterBaggage.Text.Length);
-            player.Baggage = ConfigCharacterBaggage.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(ConfigCharacterKnowledge.Text.Length);
-            player.Knowledge = ConfigCharacterKnowledge.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(ConfigCharacterSecret.Text.Length);
-            player.Secret = ConfigCharacterSecret.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterReproduction.Text.Length);
-            player.Reproduction = ConfigCharacterReproduction.GetConfig(index, rnd);
-
-            index = Random.Shared.Next(ConfigCharacterVision.Text.Length);
-            player.Vision = ConfigCharacterVision.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterEquipment.Text.Length);
-            player.Equipment = ConfigCharacterEquipment.GetConfig(index);
-
-            index = Random.Shared.Next(ConfigCharacterRelation.Text.Length);
-            player.Relation = ConfigCharacterRelation.GetConfig(index);
-        }
-        public void GenerateAllCharacters()
+        public void GenerateAllCharactersWithoutAllocation()
         {
             int playerCount = ArrayPlayers.Count;
-            Random rnd = new();
+            Random rnd = Random.Shared; // Используем Shared, чтобы не аллоцировать `new Random()`
+            ReloadTheme();
+            // 1. Создаем буфер для уникальных индексов прямо НА СТЕКЕ текущего потока.
+            // Выделение памяти занимает 0 наносекунд, нагрузка на GC = 0.
+            // Если игроков больше 128 (что в Бункере невозможно), безопасно берем обычный массив.
+            Span<int> indicesBuffer = playerCount <= 128 ? stackalloc int[playerCount] : new int[playerCount];
 
-            // Генерируем уникальные индексы для каждой характеристики
-            var nameIndices = GetUniqueIndices(playerCount, ConfigCharacterName.Text.Length);
+            // 2. ГЕНЕРИРУЕМ УНИКАЛЬНЫЕ ИНДЕКСЫ И СРАЗУ ПРИСВАИВАЕМ ИГРОКАМ
+            // Мы повторно используем один и тот же буфер на стеке для каждого конфига!
 
-            var professionIndices = GetUniqueIndices(playerCount, ConfigCharacterProfession.Text.Length);
+            // Имена
+            FillUniqueIndices(indicesBuffer, ConfigCharacterName.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Name = ConfigCharacterName.Text[indicesBuffer[i]];
 
-            var bodyBuildIndices = GetUniqueIndices(playerCount, ConfigCharacterBodyBuild.Text.Length);
-            var hobbyIndices = GetUniqueIndices(playerCount, ConfigCharacterHobby.Text.Length);
-            var phobiaIndices = GetUniqueIndices(playerCount, ConfigCharacterPhobia.Text.Length);
-            var inventoryIndices = GetUniqueIndices(playerCount, ConfigCharacterInventory.Text.Length);
-            var traitIndices = GetUniqueIndices(playerCount, ConfigCharacterTrait.Text.Length);
-            var additionalInfoIndices = GetUniqueIndices(playerCount, ConfigCharacterAdditionalInformation.Text.Length);
+            // Профессии
+            FillUniqueIndices(indicesBuffer, ConfigCharacterProfession.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Profession = ConfigCharacterProfession.GetConfig(indicesBuffer[i], rnd);
 
-            var baggageIndices = GetUniqueIndices(playerCount, ConfigCharacterBaggage.Text.Length);
-            var knowledgeIndices = GetUniqueIndices(playerCount, ConfigCharacterKnowledge.Text.Length);
-            var secretIndices = GetUniqueIndices(playerCount, ConfigCharacterSecret.Text.Length);
-            var reproductionIndices = GetUniqueIndices(playerCount, ConfigCharacterReproduction.Text.Length);
-            var visionIndices = GetUniqueIndices(playerCount, ConfigCharacterVision.Text.Length);
-            var equipmentIndices = GetUniqueIndices(playerCount, ConfigCharacterEquipment.Text.Length);
-            var relationIndices = GetUniqueIndices(playerCount, ConfigCharacterRelation.Text.Length);
+            // Телосложение
+            FillUniqueIndices(indicesBuffer, ConfigCharacterBodyBuild.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].BodyBuild = ConfigCharacterBodyBuild.GetConfig(indicesBuffer[i]);
 
-            // Присваиваем каждому игроку уникальные индексы
+            // Хобби
+            FillUniqueIndices(indicesBuffer, ConfigCharacterHobby.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Hobby = ConfigCharacterHobby.GetConfig(indicesBuffer[i], rnd);
+
+            // Фобии
+            FillUniqueIndices(indicesBuffer, ConfigCharacterPhobia.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Phobia = ConfigCharacterPhobia.GetConfig(indicesBuffer[i]);
+
+            // Инвентарь
+            FillUniqueIndices(indicesBuffer, ConfigCharacterInventory.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Inventory = ConfigCharacterInventory.GetConfig(indicesBuffer[i]);
+
+            // Черты характера
+            FillUniqueIndices(indicesBuffer, ConfigCharacterTrait.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Trait = ConfigCharacterTrait.GetConfig(indicesBuffer[i]);
+
+            // Доп. информация
+            FillUniqueIndices(indicesBuffer, ConfigCharacterAdditionalInformation.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(indicesBuffer[i]);
+
+            // Багаж
+            FillUniqueIndices(indicesBuffer, ConfigCharacterBaggage.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Baggage = ConfigCharacterBaggage.GetConfig(indicesBuffer[i], rnd);
+
+            // Знания
+            FillUniqueIndices(indicesBuffer, ConfigCharacterKnowledge.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Knowledge = ConfigCharacterKnowledge.GetConfig(indicesBuffer[i], rnd);
+
+            // Секрет
+            FillUniqueIndices(indicesBuffer, ConfigCharacterSecret.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Secret = ConfigCharacterSecret.GetConfig(indicesBuffer[i]);
+
+            // Рождаемость
+            FillUniqueIndices(indicesBuffer, ConfigCharacterReproduction.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Reproduction = ConfigCharacterReproduction.GetConfig(indicesBuffer[i], rnd);
+
+            // Зрение
+            FillUniqueIndices(indicesBuffer, ConfigCharacterVision.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Vision = ConfigCharacterVision.GetConfig(indicesBuffer[i]);
+
+            // Экипировка
+            FillUniqueIndices(indicesBuffer, ConfigCharacterEquipment.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Equipment = ConfigCharacterEquipment.GetConfig(indicesBuffer[i]);
+
+            // Отношения
+            FillUniqueIndices(indicesBuffer, ConfigCharacterRelation.Text.Length);
+            for (int i = 0; i < playerCount; i++)
+                ArrayPlayers[i].Relation = ConfigCharacterRelation.GetConfig(indicesBuffer[i]);
+
+
+            // 3. СБРОС СТАТУСОВ И ОЧИСТКА ХЭШ-ТАБЛИЦ (ZERO-ALLOCATION)
             for (int i = 0; i < playerCount; i++)
             {
                 var player = ArrayPlayers[i];
 
-                player.Name = ConfigCharacterName.Text[nameIndices[i]];
-                player.Profession = ConfigCharacterProfession.GetConfig(professionIndices[i], rnd);
-                player.BodyBuild = ConfigCharacterBodyBuild.GetConfig(bodyBuildIndices[i]);
-                player.Hobby = ConfigCharacterHobby.GetConfig(hobbyIndices[i], rnd);
-                player.Phobia = ConfigCharacterPhobia.GetConfig(phobiaIndices[i]);
-                player.Inventory = ConfigCharacterInventory.GetConfig(inventoryIndices[i]);
-                player.Trait = ConfigCharacterTrait.GetConfig(traitIndices[i]);
-                player.AdditionalInformation = ConfigCharacterAdditionalInformation.GetConfig(additionalInfoIndices[i]);
-                player.Baggage = ConfigCharacterBaggage.GetConfig(baggageIndices[i], rnd);
-                player.Knowledge = ConfigCharacterKnowledge.GetConfig(knowledgeIndices[i], rnd);
-                player.Secret = ConfigCharacterSecret.GetConfig(secretIndices[i]);
-                player.Reproduction = ConfigCharacterReproduction.GetConfig(reproductionIndices[i], rnd);
-                player.Vision = ConfigCharacterVision.GetConfig(visionIndices[i]);
-                player.Equipment = ConfigCharacterEquipment.GetConfig(equipmentIndices[i]);
-                player.Relation = ConfigCharacterRelation.GetConfig(relationIndices[i]);
-
-                // Возраст генерируется отдельно (не нуждается в уникальности)
-                int indexAge = Random.Shared.Next(100);
+                // Случайные неуникальные характеристики
+                int indexAge = rnd.Next(100);
                 player.Age = ConfigCharacterAge.GetConfig(indexAge);
 
-                int indexBiologicalSex = Random.Shared.Next(ConfigCharacterBiologicalSex.Text.Length);
+                int indexBiologicalSex = rnd.Next(ConfigCharacterBiologicalSex.Text.Length);
                 player.BiologicalSex = ConfigCharacterBiologicalSex.GetConfig(indexBiologicalSex, rnd);
 
-                int indexHealth = Random.Shared.Next(ConfigCharacterHealth.Text.Length);
-                player.Health = ConfigCharacterHealth.GetConfig(indexHealth, rnd);
-
-                int indexSpecialCondition = Random.Shared.Next(ConfigCharacterSpecialCondition.Text.Length);
+                int indexSpecialCondition = rnd.Next(ConfigCharacterSpecialCondition.Text.Length);
                 player.SpecialCondition = ConfigCharacterSpecialCondition.GetConfig(indexSpecialCondition, rnd);
 
+                // Системные флаги
                 player.IsConnected = true;
                 player.LastSeenUtc = DateTime.UtcNow;
-
-                // Игровой статус
                 player.IsReady = false;
                 player.IsEliminated = false;
                 player.IsWinner = false;
                 player.IsSelectionConfirmed = false;
-
-                // Открытие карт
                 player.CountNeedOpen = 0;
                 player.CurrentOpenedCard = 0;
-                player.PendingOpenedTypes = [];
-                player.ListOpenedTypes = [];
+
+                // ЗАЩИТА: Вместо пересоздания HashSet ([]), инициализируем если null, 
+                // и просто очищаем старые данные (.Clear()). Память переиспользуется!
+                player.PendingOpenedTypes ??= [];
+                player.PendingOpenedTypes.Clear();
+
+                player.ListOpenedTypes ??= [];
+                player.ListOpenedTypes.Clear();
             }
 
-            Console.WriteLine("[STATS] Уникальные характеристики назначены всем игрокам");
+#if DEBUG
+            // Этот лог скомпилируется и выведется ТОЛЬКО при локальной отладке.
+            // На продакшене компилятор полностью сотрет эти строки для экономии памяти.
+            Console.WriteLine("[STATS] Уникальные характеристики успешно назначены БЕЗ аллокаций");
+#endif
         }
+
         public int AddAndInitializePlayer(string sessionKey = "")
         {
             if (IsGameStarted) return -1;
@@ -358,17 +378,40 @@ namespace BunkerGameWeb
         // Проверка: все ли игроки нажали "Готов"
         public bool AreAllReady => ArrayPlayers.Count > 0 && ArrayPlayers.All(p => p.IsReady);
 
+        private void ReloadTheme()
+        {
+            var theme = ThemeManager.RegisterAndGetTheme(CurrentTheme);
 
-        public async Task StartGameAsync()
+            ConfigCharacterName.Text = theme.Names;
+            ConfigCharacterHealth.Text = theme.Health;
+            ConfigCharacterProfession.Text = theme.Professions;
+            ConfigCharacterBodyBuild.Text = theme.BodyBuilds;
+            ConfigCharacterHobby.Text = theme.Hobbies;
+            ConfigCharacterPhobia.Text = theme.Phobias;
+            ConfigCharacterInventory.Text = theme.Inventories;
+            ConfigCharacterTrait.Text = theme.Traits;
+            ConfigCharacterAdditionalInformation.Text = theme.AdditionalInformations;
+            ConfigCharacterBaggage.Text = theme.Baggages;
+            ConfigCharacterKnowledge.Text = theme.Knowledges;
+            ConfigCharacterSecret.Text = theme.Secrets;
+            ConfigCharacterReproduction.Text = theme.Reproductions;
+            ConfigCharacterVision.Text = theme.Visions;
+            ConfigCharacterEquipment.Text = theme.Equipments;
+            ConfigCharacterRelation.Text = theme.Relations;
+
+            CatastropheName.CatastropheText = theme.CatastropheText;
+            CatastropheName.itemNames = theme.CatastropheText;
+            CatastropheName.itemDescription = theme.CatastrophItemDescription;
+        }
+        public void StartGameAsync()
         {
             if (_isStarting || IsGameStarted) return;
-
+            
             _isStarting = true;
-            await WaiterToStart();
 
             if (AreAllReady && ArrayPlayers.Count >= 2)
             {
-                GenerateAllCharacters();
+                GenerateAllCharactersWithoutAllocation();
 
                 ShufflePlayers();
 
@@ -378,25 +421,17 @@ namespace BunkerGameWeb
                 CurrentPlayerIndex = 0;
                 PlayersWhoMovedThisRound.Clear(); // Очищаем список ходивших
 
-                CheckWinCondition();
-
                 // Подготовка первого игрока
                 if (ArrayPlayers.Count > 0)
                 {
                     ArrayPlayers[0].CountNeedOpen = 2; // В первом раунде 2 карты
                     ArrayPlayers[0].CurrentOpenedCard = 0;
                 }
-
+                
                 UpdateAll();
             }
         }
-        private async Task WaiterToStart()
-        {
-            for (int i = 0; i < 10 && AreAllReady; i++)
-            {
-                await Task.Delay(100);
-            }
-        }
+        
 
         // Метод для завершения хода
         public void NextTurn()
@@ -592,7 +627,7 @@ namespace BunkerGameWeb
 
         public void ShufflePlayers()
         {
-            Random rng = new();
+            Random rng = Random.Shared;
             int n = ArrayPlayers.Count;
 
             // Алгоритм Фишера-Йетса (Fisher-Yates shuffle)
@@ -607,11 +642,13 @@ namespace BunkerGameWeb
             CurrentPlayerIndex = 0;
             PlayersWhoMovedThisRound.Clear();
 
+#if DEBUG
             Console.WriteLine("[SHUFFLE] Порядок ходов:");
             for (int i = 0; i < ArrayPlayers.Count; i++)
             {
                 Console.WriteLine($"  {i + 1}. {ArrayPlayers[i].Name} (ID: {ArrayPlayers[i].Id})");
             }
+#endif
         }
 
 
@@ -621,8 +658,9 @@ namespace BunkerGameWeb
             player.CountNeedOpen = GameRounds == 1 ? 2 : 1;
             player.PendingOpenedTypes.Clear();
             player.IsSelectionConfirmed = false;
-
+#if DEBUG
             Console.WriteLine($"[PREPARE] Игрок {player.Name} готов к ходу (Раунд {GameRounds}, нужно открыть {player.CountNeedOpen} карт)");
+#endif
         }
 
 
@@ -639,7 +677,7 @@ namespace BunkerGameWeb
             }
             else
             {
-                GenerateAllCharacters();
+                GenerateAllCharactersWithoutAllocation();
             }
 
             // 2. Сбрасываем системные переменные
@@ -697,7 +735,9 @@ namespace BunkerGameWeb
             {
                 player.SpecialCondition.IsUsed = true;
                 UpdateAll();
+#if DEBUG
                 Console.WriteLine($"[DEBUG] UseSpecialAbility: UpdateAll вызван");
+#endif
             }
 
             return success;
@@ -921,7 +961,8 @@ namespace BunkerGameWeb
             {
                 IsCreate = true
             };
-        }        // Метод проверки условия победы
+        }       
+        // Метод проверки условия победы
         private void CheckWinCondition()
         {
             if (!IsGameStarted) return;
